@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Candidate {
+  id              String       @id @default(uuid())
+  firstName       String
+  lastName        String
+  email           String       @unique
+  phone           String       @unique
+  position        String
+  experience      Int
+  expectedSalary  Float?
+  currentLocation String?
+  cvDriveLink     String?
+  motivation      String?
+  status          String       @default("APPLIED")
+  rejectionReason String?
+  layer1Score     Float?
+  aiMotivationScore Float?
+  aiCvScore       Float?
+  applicationScore Float?
+  finalScore      Float?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  assessments     Assessment[]
+}
+
+model Assessment {
+  id          String   @id @default(uuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  token       String   @unique @default(uuid())
+  status      String   @default("PENDING")
+  mcqScore    Float?
+  audioScore  Float?
+  finalScore  Float?
+  expiresAt   DateTime
+  startedAt   DateTime?
+  completedAt DateTime?
+  antiCheat   Json?
+  audioDriveLink String?
+  aiSpeechRawScores Json?
+  aiSpeechTranscript String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Question {
+  id            String   @id @default(uuid())
+  category      String
+  questionText  String
+  options       Json
+  correctAnswer String
+  difficulty    String   @default("MEDIUM")
+  createdAt     DateTime @default(now())
+}
