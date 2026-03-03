@@ -1,4 +1,5 @@
 import { IsString, IsEmail, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateApplicationDto {
     @IsString()
@@ -21,10 +22,12 @@ export class CreateApplicationDto {
     @IsNotEmpty()
     position: string;
 
+    @Type(() => Number)
     @IsNumber()
     experience: number;
 
     @IsOptional()
+    @Type(() => Number)
     @IsNumber()
     expectedSalary?: number;
 
