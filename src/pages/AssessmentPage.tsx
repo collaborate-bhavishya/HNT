@@ -213,7 +213,7 @@ export default function AssessmentPage() {
     ));
 
     if (audioBlobRef.current) {
-      formData.append('audioBlob', audioBlobRef.current, 'recording.webm');
+      formData.append('audio', audioBlobRef.current, 'recording.webm');
     }
 
     // Live API Submit

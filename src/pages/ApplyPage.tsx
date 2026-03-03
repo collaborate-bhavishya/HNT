@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -75,7 +74,6 @@ const steps = [
 export default function ApplyPage() {
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitted, setIsSubmitted] = useState(false);
-    const navigate = useNavigate();
 
     const {
         register,
@@ -125,22 +123,35 @@ export default function ApplyPage() {
         }
     };
 
-    const [assessmentToken, setAssessmentToken] = useState<string | null>(null);
-
     const onSubmit = async (data: ApplyFormValues) => {
+        const nameParts = data.fullName.split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Doe';
+
+        const experience = data.priorExperience && data.yearsOfExperience ? data.yearsOfExperience : 0;
+
+        const motivationDetails = `
+Why teach with us: ${data.whyTeachWithUs}
+Highest Education: ${data.highestEducation}
+Prior Experience: ${data.priorExperience ? `Yes, ${experience} years at ${data.companyName}` : 'No'}
+Currently Working: ${data.currentlyWorking ? `Yes, ${data.workType} ` : 'No'}
+Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${data.openToWeekends ? 'Yes' : 'No'}), Night Shifts (${data.comfortableNightShifts ? 'Yes' : 'No'})
+        `.trim();
+
         // Build Multipart Form Data (matching backend API contract)
         const formData = new FormData();
-
-        // Append all JSON fields as strings/blobs
-        Object.entries(data).forEach(([key, value]) => {
-            if (key !== 'cvFile' && value !== undefined) {
-                formData.append(key, String(value));
-            }
-        });
+        formData.append('firstName', firstName);
+        formData.append('lastName', lastName);
+        formData.append('email', data.email);
+        formData.append('phone', data.phone);
+        formData.append('position', data.subject);
+        formData.append('experience', String(experience));
+        formData.append('currentLocation', data.city);
+        formData.append('motivation', motivationDetails);
 
         // Append the file if it exists
         if (data.cvFile && data.cvFile.length > 0) {
-            formData.append('cvFile', data.cvFile[0]);
+            formData.append('cv', data.cvFile[0]);
         }
 
         console.log("Submitting FormData to /api/applications");
@@ -155,11 +166,16 @@ export default function ApplyPage() {
 
             if (!response.ok) {
                 console.error("Application Failed:", result);
-                alert(`Error: ${result.message || result.reason}`);
+                let errorMessage = 'Network error submitting application';
+                if (result.message && Array.isArray(result.message)) {
+                    errorMessage = result.message.join(', ');
+                } else if (result.message) {
+                    errorMessage = result.message;
+                }
+                alert(`Error: ${errorMessage}`);
                 return;
             }
 
-            setAssessmentToken(result._dev_mock_id);
             setIsSubmitted(true);
         } catch (error) {
             console.error(error);
@@ -167,7 +183,7 @@ export default function ApplyPage() {
         }
     };
 
-    if (isSubmitted && assessmentToken) {
+    if (isSubmitted) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
                 <Card className="w-full max-w-md text-center p-8 space-y-6">
@@ -176,13 +192,13 @@ export default function ApplyPage() {
                     </div>
                     <CardTitle className="text-2xl">Application Submitted!</CardTitle>
                     <CardDescription className="text-base text-gray-600">
-                        Thank you for applying. We will review your application and send you a link to our assessment portal shortly.
+                        Thank you for applying. We are currently evaluating your profile using our AI models.
                     </CardDescription>
-                    <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-md text-sm text-left">
-                        <strong>Developer Note:</strong> The backend has evaluated your application and generated a secure assessment token.
+                    <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md text-sm text-left">
+                        <strong>Developer Note:</strong> The candidate's data has been sent to the \`application-ai-queue\`. If Gemini approves it, an email with the assessment link will be (mock) sent in the background! Check your terminal logs.
                     </div>
-                    <Button onClick={() => navigate(`/assessment/${assessmentToken}`)} className="w-full">
-                        Proceed to Assessment (Demo)
+                    <Button onClick={() => window.location.reload()} variant="outline" className="w-full">
+                        Submit Another Application
                     </Button>
                 </Card>
             </div>
