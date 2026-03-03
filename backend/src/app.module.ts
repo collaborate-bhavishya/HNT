@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { Redis } from 'ioredis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ApplicationsModule } from './applications/applications.module';
@@ -11,10 +12,9 @@ import { NotificationsModule } from './notifications/notifications.module';
 @Module({
   imports: [
     BullModule.forRoot({
-      connection: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-      },
+      connection: new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+        maxRetriesPerRequest: null,
+      }) as any,
     }),
     ApplicationsModule,
     AssessmentModule,
