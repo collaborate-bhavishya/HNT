@@ -83,7 +83,8 @@ export class ApplicationAiWorker extends WorkerHost {
                         status: 'PENDING'
                     }
                 });
-                const link = `http://localhost:3000/assessment/${assessment.token}`;
+                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+                const link = `${frontendUrl}/assessment/${assessment.token}`;
                 await this.notifications.sendAssessmentLinkEmail(candidate.email, link);
             } else if (newStatus === 'REJECTED_FORM') {
                 await this.notifications.sendFormRejectionEmail(candidate.email);
