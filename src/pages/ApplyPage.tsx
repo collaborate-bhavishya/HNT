@@ -157,7 +157,8 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
         console.log("Submitting FormData to /api/applications");
 
         try {
-            const response = await fetch('http://localhost:3000/api/applications', {
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const response = await fetch(`${API_URL}/api/applications`, {
                 method: 'POST',
                 body: formData,
             });

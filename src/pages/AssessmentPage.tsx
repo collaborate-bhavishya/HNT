@@ -43,7 +43,8 @@ export default function AssessmentPage() {
   // --- API FETCH ---
   useEffect(() => {
     if (!token) return;
-    fetch(`http://localhost:3000/api/assessment/${token}`)
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    fetch(`${API_URL}/api/assessment/${token}`)
       .then(res => res.json().then(data => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
         if (!ok) {
@@ -221,7 +222,8 @@ export default function AssessmentPage() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`http://localhost:3000/api/assessment/${token}/submit`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const res = await fetch(`${API_URL}/api/assessment/${token}/submit`, {
         method: 'POST',
         body: formData
       });
