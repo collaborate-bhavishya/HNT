@@ -195,9 +195,7 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
                     <CardDescription className="text-base text-gray-600">
                         Thank you for applying. We are currently evaluating your profile using our AI models.
                     </CardDescription>
-                    <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md text-sm text-left">
-                        <strong>Developer Note:</strong> The candidate's data has been sent to the \`application-ai-queue\`. If Gemini approves it, an email with the assessment link will be (mock) sent in the background! Check your terminal logs.
-                    </div>
+
                     <Button onClick={() => window.location.reload()} variant="outline" className="w-full">
                         Submit Another Application
                     </Button>
