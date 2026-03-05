@@ -4,12 +4,14 @@ import { ApplicationsService } from './applications.service';
 import { ApplicationEvaluatorService } from './application-evaluator.service';
 import { PrismaService } from '../prisma.service';
 import { BullModule } from '@nestjs/bullmq';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
     imports: [
         BullModule.registerQueue({
             name: 'application-ai-queue',
         }),
+        NotificationsModule
     ],
     controllers: [ApplicationsController],
     providers: [ApplicationsService, ApplicationEvaluatorService, PrismaService],

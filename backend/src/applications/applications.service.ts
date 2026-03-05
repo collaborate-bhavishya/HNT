@@ -4,12 +4,14 @@ import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma.service';
 import { ApplicationEvaluatorService } from './application-evaluator.service';
 import { CreateApplicationDto } from './create-application.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ApplicationsService {
     constructor(
         private prisma: PrismaService,
         private evaluatorService: ApplicationEvaluatorService,
+        private notifications: NotificationsService,
         @InjectQueue('application-ai-queue') private aiQueue: Queue,
     ) { }
 
@@ -70,6 +72,8 @@ export class ApplicationsService {
 
         if (status === 'AI_SCORING') {
             await this.aiQueue.add('process-application-ai', { candidateId: candidate.id });
+        } else if (status === 'REJECTED') {
+            await this.notifications.sendFormRejectionEmail(candidate.email);
         }
 
         return {
