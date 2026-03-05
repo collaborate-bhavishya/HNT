@@ -14,6 +14,16 @@ export class NotificationsService {
         }
     }
 
+    private getFrom(): { email: string; name: string } {
+        const raw = process.env.SMTP_FROM || 'info.education10x@gmail.com';
+        // Parse "Display Name" <email@example.com> format
+        const match = raw.match(/"?([^"<]*)"?\s*<([^>]+)>/);
+        if (match) {
+            return { name: match[1].trim(), email: match[2].trim() };
+        }
+        return { email: raw.trim(), name: 'Hiring Team' };
+    }
+
     private async sendMail(options: any) {
         if (!process.env.SENDGRID_API_KEY) {
             this.logger.warn(`Transporter not initialized with SendGrid Key. Cannot send email to ${options.to}`);
@@ -21,19 +31,20 @@ export class NotificationsService {
         }
 
         try {
+            this.logger.log(`Attempting to send email: ${options.subject} -> ${options.to} from ${JSON.stringify(options.from)}`);
             await sgMail.send(options);
             this.logger.log(`Email Sent via SendGrid: ${options.subject} -> ${options.to}`);
         } catch (error: any) {
-            this.logger.error(`Failed to send email to ${options.to}`, error);
+            this.logger.error(`Failed to send email to ${options.to}`, error?.message || error);
             if (error.response) {
-                this.logger.error(error.response.body);
+                this.logger.error(`SendGrid response body: ${JSON.stringify(error.response.body)}`);
             }
         }
     }
 
     async sendFormRejectionEmail(email: string) {
         await this.sendMail({
-            from: process.env.SMTP_FROM || 'info.education10x@gmail.com', // Must be a verified sender in SendGrid
+            from: this.getFrom(),
             to: email,
             subject: 'Update on your Teaching Application',
             text: 'Thank you for applying. Unfortunately, we are not moving forward with your application at this time.',
@@ -43,7 +54,7 @@ export class NotificationsService {
 
     async sendAssessmentLinkEmail(email: string, link: string) {
         await this.sendMail({
-            from: process.env.SMTP_FROM || 'info.education10x@gmail.com',
+            from: this.getFrom(),
             to: email,
             subject: 'You have been selected! Next step: Assessment',
             text: `Congratulations! Please complete your assessment using this link: ${link}`,
@@ -53,7 +64,7 @@ export class NotificationsService {
 
     async sendFinalDecisionEmail(email: string, status: string) {
         await this.sendMail({
-            from: process.env.SMTP_FROM || 'info.education10x@gmail.com',
+            from: this.getFrom(),
             to: email,
             subject: `Final Decision on your Application: ${status}`,
             text: `The final decision on your application is: ${status}.`,
