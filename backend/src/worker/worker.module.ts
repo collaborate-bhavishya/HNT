@@ -9,7 +9,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 @Module({
     imports: [
         BullModule.forRoot({
-            connection: new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+            connection: new Redis((process.env.REDIS_URL || 'redis://localhost:6379').replace(/["']/g, ''), {
                 maxRetriesPerRequest: null,
             }) as any,
         }),

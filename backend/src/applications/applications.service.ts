@@ -73,7 +73,9 @@ export class ApplicationsService {
         if (status === 'AI_SCORING') {
             await this.aiQueue.add('process-application-ai', { candidateId: candidate.id });
         } else if (status === 'REJECTED') {
-            await this.notifications.sendFormRejectionEmail(candidate.email);
+            this.notifications.sendFormRejectionEmail(candidate.email).catch(err => {
+                console.error('Failed to send instant rejection email:', err);
+            });
         }
 
         return {
