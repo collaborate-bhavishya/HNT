@@ -8,6 +8,7 @@ import { PrismaService } from './prisma.service';
 import { BullModule } from '@nestjs/bullmq';
 import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { WorkerModule } from './worker/worker.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AssessmentModule,
     AdminModule,
     NotificationsModule,
+    WorkerModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
