@@ -89,25 +89,39 @@ export class AssessmentService {
             throw new BadRequestException('Only audio files are allowed');
         }
 
-        // Simulate MCQ scoring
-        const mcqScore = payload.answers ? payload.answers.length * 10 : 0;
+        // Score MCQs against correct answers
+        const correctAnswers: Record<number, number> = { 1: 1, 2: 1, 3: 1, 4: 1, 5: 2 };
+        let mcqCorrect = 0;
+        let mcqAnswers: any[] = [];
+        try {
+            mcqAnswers = typeof payload.mcqAnswers === 'string' ? JSON.parse(payload.mcqAnswers) : (payload.mcqAnswers || []);
+        } catch { mcqAnswers = []; }
 
-        // Mock Google Drive Upload for audio
-        const audioDriveLink = file ? 'https://mock-google-drive.com/audio/' + file.filename : null;
+        for (const answer of mcqAnswers) {
+            if (correctAnswers[answer.questionId] === answer.selectedOption) {
+                mcqCorrect++;
+            }
+        }
+        const mcqScore = Math.round((mcqCorrect / Object.keys(correctAnswers).length) * 100);
 
         await this.prisma.assessment.update({
             where: { id: assessment.id },
             data: {
                 mcqScore,
-                audioDriveLink,
                 status: 'AUDIO_PROCESSING',
                 completedAt: new Date(),
-                // token: null // Could invalidate token by setting it to a random string or null, but token is required @unique so let's leave as is but check status
             },
         });
 
-        // Add to bullmq queue
-        await this.audioQueue.add('process-audio', { assessmentId: assessment.id });
+        // Pass audio buffer as base64 through the queue for Azure processing
+        const audioBase64 = file ? file.buffer.toString('base64') : null;
+        const audioMimeType = file ? file.mimetype : null;
+
+        await this.audioQueue.add('process-audio', {
+            assessmentId: assessment.id,
+            audioBase64,
+            audioMimeType,
+        });
 
         return {
             status: 'ASSESSMENT_COMPLETED',
