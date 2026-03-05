@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as sgMail from '@sendgrid/mail';
+import * as sendgrid from '@sendgrid/mail';
+const sgMail = sendgrid as any;
 
 @Injectable()
 export class NotificationsService {
@@ -14,7 +15,7 @@ export class NotificationsService {
         }
     }
 
-    private async sendMail(options: sgMail.MailDataRequired) {
+    private async sendMail(options: sendgrid.MailDataRequired) {
         if (!process.env.SENDGRID_API_KEY) {
             this.logger.warn(`Transporter not initialized with SendGrid Key. Cannot send email to ${options.to}`);
             return;
