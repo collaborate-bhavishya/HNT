@@ -114,8 +114,16 @@ export class AssessmentService {
         });
 
         // Pass audio buffer as base64 through the queue for Azure processing
-        const audioBase64 = file ? file.buffer.toString('base64') : null;
-        const audioMimeType = file ? file.mimetype : null;
+        let audioBase64: string | null = null;
+        let audioMimeType: string | null = null;
+
+        if (file && file.buffer) {
+            audioBase64 = file.buffer.toString('base64');
+            audioMimeType = file.mimetype;
+            console.log(`[AssessmentService] Audio file received: ${file.mimetype}, buffer size: ${file.buffer.length} bytes, base64 size: ${audioBase64.length} chars`);
+        } else {
+            console.warn(`[AssessmentService] No audio buffer available. file exists: ${!!file}, buffer exists: ${!!(file && file.buffer)}`);
+        }
 
         await this.audioQueue.add('process-audio', {
             assessmentId: assessment.id,

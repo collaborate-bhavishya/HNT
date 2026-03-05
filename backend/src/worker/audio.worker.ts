@@ -57,10 +57,11 @@ export class AudioWorker extends WorkerHost {
                     this.logger.error('Azure Speech API failed, using fallback score', azureErr);
                 }
             } else {
-                this.logger.warn('No Azure credentials or audio data. Using fallback score.');
-                if (!job.data.audioBase64) {
-                    this.logger.warn('No audio data in job payload');
-                }
+                this.logger.warn('Cannot run Azure assessment. Missing:');
+                if (!azureKey) this.logger.warn('  - AZURE_SPEECH_KEY not set');
+                if (!azureRegion) this.logger.warn('  - AZURE_SPEECH_REGION not set');
+                if (!job.data.audioBase64) this.logger.warn('  - No audio data in job payload (audioBase64 is null/empty)');
+                this.logger.warn(`Job data keys: ${Object.keys(job.data).join(', ')}`);
             }
 
             const candidate = assessment.candidate;
