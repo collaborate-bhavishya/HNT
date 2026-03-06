@@ -84,6 +84,30 @@ export class ApplicationsService {
     }
 
     async getAllCandidates() {
-        return this.prisma.candidate.findMany();
+        return this.prisma.candidate.findMany({
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    async getCandidateById(id: string) {
+        return this.prisma.candidate.findUnique({
+            where: { id },
+            include: {
+                assessments: {
+                    select: {
+                        id: true,
+                        status: true,
+                        mcqScore: true,
+                        audioScore: true,
+                        finalScore: true,
+                        aiSpeechRawScores: true,
+                        aiSpeechTranscript: true,
+                        completedAt: true,
+                        createdAt: true,
+                    },
+                    orderBy: { createdAt: 'desc' },
+                },
+            },
+        });
     }
 }

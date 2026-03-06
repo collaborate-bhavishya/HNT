@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Param, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationDto } from './create-application.dto';
@@ -22,5 +22,10 @@ export class ApplicationsController {
     @Get()
     async getAllApplications() {
         return this.applicationsService.getAllCandidates();
+    }
+
+    @Get(':id')
+    async getCandidateById(@Param('id') id: string) {
+        return this.applicationsService.getCandidateById(id);
     }
 }
