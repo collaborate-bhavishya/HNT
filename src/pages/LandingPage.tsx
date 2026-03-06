@@ -64,7 +64,7 @@ export default function LandingPage() {
             <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
                 <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
                     <img
-                        src="/brightchamps-logo.png"
+                        src="/brightchamps-logo.svg"
                         alt="BrightChamps"
                         className="h-9"
                     />
@@ -256,7 +256,7 @@ export default function LandingPage() {
             <footer className="bg-gray-900 text-gray-400 py-10 border-t border-gray-800">
                 <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <img src="/brightchamps-logo.png" alt="BrightChamps" className="h-7 brightness-200" />
+                        <img src="/brightchamps-logo.svg" alt="BrightChamps" className="h-7 brightness-200" />
                     </div>
                     <p className="text-sm">
                         © {new Date().getFullYear()} BrightChamps. All rights reserved.

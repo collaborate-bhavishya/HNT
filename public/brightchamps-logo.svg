@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 80" fill="none">
+  <!-- Shield -->
+  <g transform="translate(0, 5)">
+    <path d="M12 8 L35 2 L58 8 L58 38 C58 52 35 65 35 65 C35 65 12 52 12 38 Z" fill="#4285F4"/>
+    <path d="M35 20 L37.5 27 L45 27 L39 31.5 L41 38.5 L35 34 L29 38.5 L31 31.5 L25 27 L32.5 27 Z" fill="#FFD43B" stroke="#FFD43B" stroke-width="0.5"/>
+    <!-- Yellow accent under shield -->
+    <path d="M20 62 Q35 68 50 62" stroke="#FFD43B" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <!-- BrightCHAMPS text -->
+  <text x="72" y="38" font-family="Arial, sans-serif" font-weight="800" font-size="30">
+    <tspan fill="#3B5998">Bright</tspan><tspan fill="#EA4335">C</tspan><tspan fill="#F4A623">H</tspan><tspan fill="#FFD43B">A</tspan><tspan fill="#34A853">M</tspan><tspan fill="#4285F4">P</tspan><tspan fill="#7B61FF">S</tspan>
+  </text>
+  <!-- WINDOW TO NEXTGEN SKILLS -->
+  <text x="72" y="56" font-family="Arial, sans-serif" font-weight="600" font-size="9.5" letter-spacing="2.5" fill="#4285F4">WINDOW TO NEXTGEN SKILLS</text>
+</svg>
