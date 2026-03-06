@@ -29,27 +29,47 @@
 [32m[Nest] 10443  - [39m03/04/2026, 10:30:48 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/candidates, GET} route[39m[38;5;3m +1ms[39m
 [32m[Nest] 10443  - [39m03/04/2026, 10:30:48 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/candidates/:id, GET} route[39m[38;5;3m +0ms[39m
 [32m[Nest] 10443  - [39m03/04/2026, 10:30:48 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/api/admin/auth}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 10443  - [39m03/04/2026, 10:30:48 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/auth/login, POST} route[39m[38;5;3m +1ms[39m
-[32m[Nest] 10443  - [39m03/04/2026, 10:30:53 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +4683ms[39m
-[31m[Nest] 10443  - [39m03/04/2026, 10:30:53 PM [31m  ERROR[39m [38;5;3m[NestApplication] [39m[31mError: listen EADDRINUSE: address already in use :::3000[39m[38;5;3m +7ms[39m
-node:net:1940
-    const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
-               ^
-
-Error: listen EADDRINUSE: address already in use :::3000
-    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
-    at listenInCluster (node:net:1997:12)
-    at Server.listen (node:net:2102:7)
-    at ExpressAdapter.listen (/Users/bhavishyachaurasia/HNT/backend/node_modules/@nestjs/platform-express/adapters/express-adapter.js:127:32)
-    at /Users/bhavishyachaurasia/HNT/backend/node_modules/@nestjs/core/nest-application.js:188:30
-    at new Promise (<anonymous>)
-    at NestApplication.listen (/Users/bhavishyachaurasia/HNT/backend/node_modules/@nestjs/core/nest-application.js:178:16)
-    at async bootstrap (/Users/bhavishyachaurasia/HNT/backend/src/main.ts:31:3) {
-  code: 'EADDRINUSE',
-  errno: -48,
-  syscall: 'listen',
-  address: '::',
-  port: 3000
+[32m[Nest] 10443  - [39m03/04/2026, 10:30:48 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/auth/login, POST} route[39m[38;5;3m +1ms[39Error: read ETIMEDOUT
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'read'
 }
+Error: read ETIMEDOUT
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'read'
+}
+[31m[Nest] 1664  - [39m03/06/2026, 4:59:00 PM [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39mPrismaClientKnownRequestError: 
+Invalid `prisma.candidate.findFirst()` invocation:
 
-Node.js v24.13.1
+
+Can't reach database server at `aws-1-ap-northeast-2.pooler.supabase.com:5432`
+
+Please make sure your database server is running at `aws-1-ap-northeast-2.pooler.supabase.com:5432`.
+    at $n.handleRequestError [90m(/Users/bhavishyachaurasia/HNT/backend/[39mnode_modules/[4m@prisma/client[24m/runtime/library.js:121:7315[90m)[39m
+    at $n.handleAndLogRequestError [90m(/Users/bhavishyachaurasia/HNT/backend/[39mnode_modules/[4m@prisma/client[24m/runtime/library.js:121:6623[90m)[39m
+    at $n.request [90m(/Users/bhavishyachaurasia/HNT/backend/[39mnode_modules/[4m@prisma/client[24m/runtime/library.js:121:6307[90m)[39m
+    at async l [90m(/Users/bhavishyachaurasia/HNT/backend/[39mnode_modules/[4m@prisma/client[24m/runtime/library.js:130:9633[90m)[39m
+    at async ApplicationsService.submitApplication [90m(/Users/bhavishyachaurasia/HNT/backend/[39msrc/applications/applications.service.ts:26:26[90m)[39m {
+  code: [32m'P1001'[39m,
+  clientVersion: [32m'5.22.0'[39m,
+  meta: {
+    modelName: [32m'Candidate'[39m,
+    database_host: [32m'aws-1-ap-northeast-2.pooler.supabase.com'[39m,
+    database_port: [33m5432[39m
+  }
+}
+Error: read ETIMEDOUT
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'read'
+}
+Error: read ETIMEDOUT
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'read'
+}

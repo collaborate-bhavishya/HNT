@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
-import { Search, User, XCircle, RefreshCw, AlertCircle } from 'lucide-react';
+import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2 } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://hnt.onrender.com';
@@ -67,6 +67,11 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
+    const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS'>('CANDIDATES');
+
+    // Question management state
+    const [uploading, setUploading] = useState(false);
+    const [importMsg, setImportMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
     const fetchCandidates = async () => {
         setLoading(true);
@@ -93,6 +98,65 @@ export default function AdminDashboard() {
             // If detail endpoint doesn't exist, use list data
             const c = candidates.find(c => c.id === id);
             if (c) setSelectedCandidate(c);
+        }
+    };
+
+    const updateStatus = async (id: string, newStatus: string) => {
+        try {
+            const res = await fetch(`${API_BASE}/api/applications/${id}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            if (res.ok) {
+                // Refresh local data
+                setCandidates(candidates.map(c => c.id === id ? { ...c, status: newStatus as CandidateStatus } : c));
+                if (selectedCandidate?.id === id) {
+                    setSelectedCandidate({ ...selectedCandidate, status: newStatus as CandidateStatus });
+                }
+            }
+        } catch (err) {
+            console.error('Failed to update status', err);
+        }
+    };
+
+    const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        setImportMsg(null);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch(`${API_BASE}/api/questions/import`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setImportMsg({ type: 'success', text: `Successfully imported ${data.count} questions!` });
+            } else {
+                throw new Error(data.message || 'Import failed');
+            }
+        } catch (err: any) {
+            setImportMsg({ type: 'error', text: err.message });
+        } finally {
+            setUploading(false);
+            if (e.target) e.target.value = ''; // Reset input
+        }
+    };
+
+    const clearAllQuestions = async () => {
+        if (!confirm('Are you sure you want to delete ALL questions from the database?')) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/questions/all`, { method: 'DELETE' });
+            if (res.ok) {
+                setImportMsg({ type: 'success', text: 'All questions cleared successfully.' });
+            }
+        } catch (err: any) {
+            setImportMsg({ type: 'error', text: 'Failed to clear questions.' });
         }
     };
 
@@ -128,29 +192,48 @@ export default function AdminDashboard() {
                 <nav className="p-4 space-y-1 flex-1">
                     <Button
                         variant="ghost"
-                        className={cn("w-full justify-start gap-3", statusFilter === 'ALL' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
-                        onClick={() => setStatusFilter('ALL')}
+                        className={cn("w-full justify-start gap-3", activeTab === 'CANDIDATES' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
+                        onClick={() => setActiveTab('CANDIDATES')}
                     >
                         <User className="w-5 h-5" />
                         All Candidates
                         <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{candidates.length}</span>
                     </Button>
-                    {Object.entries(statusConfig).map(([key, config]) => {
-                        const count = statusCounts[key] || 0;
-                        if (count === 0) return null;
-                        return (
-                            <Button
-                                key={key}
-                                variant="ghost"
-                                className={cn("w-full justify-start gap-3 text-sm", statusFilter === key ? "bg-primary-50 text-primary-700" : "text-gray-600")}
-                                onClick={() => setStatusFilter(key)}
-                            >
-                                <span className={cn("w-2 h-2 rounded-full", isRejected(key) ? "bg-red-500" : isSuccess(key) ? "bg-green-500" : "bg-blue-500")} />
-                                {config.label}
-                                <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{count}</span>
-                            </Button>
-                        );
-                    })}
+                    <Button
+                        variant="ghost"
+                        className={cn("w-full justify-start gap-3", activeTab === 'QUESTIONS' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
+                        onClick={() => setActiveTab('QUESTIONS')}
+                    >
+                        <Database className="w-5 h-5" />
+                        Question Bank
+                    </Button>
+
+                    <div className="h-4" />
+                    <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Candidate Filters</div>
+
+                    {activeTab === 'CANDIDATES' && (
+                        <>
+                            {Object.entries(statusConfig).map(([key, config]) => {
+                                const count = statusCounts[key] || 0;
+                                if (count === 0) return null;
+                                return (
+                                    <Button
+                                        key={key}
+                                        variant="ghost"
+                                        className={cn("w-full justify-start gap-3 text-sm", statusFilter === key ? "bg-primary-50 text-primary-700" : "text-gray-600")}
+                                        onClick={() => {
+                                            setStatusFilter(key);
+                                            setActiveTab('CANDIDATES');
+                                        }}
+                                    >
+                                        <span className={cn("w-2 h-2 rounded-full", isRejected(key) ? "bg-red-500" : isSuccess(key) ? "bg-green-500" : "bg-blue-500")} />
+                                        {config.label}
+                                        <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{count}</span>
+                                    </Button>
+                                );
+                            })}
+                        </>
+                    )}
                 </nav>
                 <div className="p-4 border-t">
                     <Button variant="outline" className="w-full gap-2" onClick={fetchCandidates}>
@@ -162,39 +245,45 @@ export default function AdminDashboard() {
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
-                <header className="bg-white border-b px-8 py-4 flex justify-between items-center">
+                <header className="bg-white border-b px-8 py-4 flex justify-between items-center text-sans">
                     <div>
-                        <h2 className="text-2xl font-semibold text-gray-800">Candidates</h2>
-                        <p className="text-sm text-gray-500">{filteredCandidates.length} of {candidates.length} candidates</p>
+                        <h2 className="text-2xl font-semibold text-gray-800">
+                            {activeTab === 'CANDIDATES' ? 'Candidates' : 'Question Bank'}
+                        </h2>
+                        <p className="text-sm text-gray-500">
+                            {activeTab === 'CANDIDATES' ? `${filteredCandidates.length} applicants in view` : 'Manage your technical question pool'}
+                        </p>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="relative">
-                            <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <Input
-                                className="pl-10 w-64 bg-gray-50 border-transparent focus:bg-white"
-                                placeholder="Search by name, email, position..."
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                            />
+                    {activeTab === 'CANDIDATES' && (
+                        <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <Input
+                                    className="pl-10 w-64 bg-gray-50 border-transparent focus:bg-white"
+                                    placeholder="Search candidates..."
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                />
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </header>
 
                 <main className="flex-1 overflow-auto p-8 flex gap-8">
                     {/* List View */}
-                    <Card className="flex-1 flex flex-col min-h-0 bg-white">
-                        {loading ? (
-                            <div className="flex-1 flex items-center justify-center text-gray-400">
-                                <RefreshCw className="w-6 h-6 animate-spin mr-2" /> Loading candidates...
-                            </div>
-                        ) : error ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-red-500 gap-2">
-                                <AlertCircle className="w-8 h-8" />
-                                <p>{error}</p>
-                                <Button variant="outline" className="mt-2" onClick={fetchCandidates}>Retry</Button>
-                            </div>
-                        ) : (
-                            <>
+                    {activeTab === 'CANDIDATES' ? (
+                        <Card className="flex-1 flex flex-col min-h-0 bg-white">
+                            {loading ? (
+                                <div className="flex-1 flex items-center justify-center text-gray-400">
+                                    <RefreshCw className="w-6 h-6 animate-spin mr-2" /> Loading candidates...
+                                </div>
+                            ) : error ? (
+                                <div className="flex-1 flex flex-col items-center justify-center text-red-500 gap-2">
+                                    <AlertCircle className="w-8 h-8" />
+                                    <p>{error}</p>
+                                    <Button variant="outline" className="mt-2" onClick={fetchCandidates}>Retry</Button>
+                                </div>
+                            ) : (
                                 <div className="overflow-auto flex-1">
                                     <table className="w-full text-left text-sm whitespace-nowrap">
                                         <thead className="bg-gray-50 text-gray-600 font-medium sticky top-0 shadow-sm">
@@ -259,9 +348,78 @@ export default function AdminDashboard() {
                                         </tbody>
                                     </table>
                                 </div>
-                            </>
-                        )}
-                    </Card>
+                            )}
+                        </Card>
+                    ) : (
+                        <div className="flex-1 flex flex-col gap-6">
+                            <Card className="bg-white p-8 space-y-8">
+                                <div className="max-w-xl space-y-4">
+                                    <h3 className="text-xl font-bold text-gray-900">Import MCQ Question Bank</h3>
+                                    <p className="text-sm text-gray-600">
+                                        Upload a CSV file to populate your technical pool. The file should have columns for:
+                                        <code className="block mt-2 p-2 bg-gray-50 rounded text-xs text-primary-700 font-mono">
+                                            category, questionText, options (pipe separated), correctAnswer, difficulty
+                                        </code>
+                                    </p>
+                                </div>
+
+                                <div className="grid sm:grid-cols-2 gap-8 items-start">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-center w-full">
+                                            <label className={cn(
+                                                "flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all",
+                                                uploading ? "bg-gray-100 border-gray-300" : "bg-primary-50/30 border-primary-200 hover:bg-primary-50"
+                                            )}>
+                                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                    <FileUp className={cn("w-10 h-10 mb-3", uploading ? "text-gray-400 animate-bounce" : "text-primary-600")} />
+                                                    <p className="mb-2 text-sm text-gray-700">
+                                                        <span className="font-bold">Click to upload MCQ CSV</span>
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">Only CSV files are supported</p>
+                                                </div>
+                                                <input type="file" className="hidden" accept=".csv" onChange={handleCsvUpload} disabled={uploading} />
+                                            </label>
+                                        </div>
+
+                                        {importMsg && (
+                                            <div className={cn(
+                                                "p-4 rounded-xl flex items-center gap-3 transition-all animate-in fade-in slide-in-from-top-2",
+                                                importMsg.type === 'success' ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100"
+                                            )}>
+                                                {importMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
+                                                <span className="text-sm font-medium">{importMsg.text}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100 space-y-4">
+                                        <h4 className="font-bold text-amber-900 flex items-center gap-2">
+                                            <Database className="w-4 h-4" />
+                                            Database Actions
+                                        </h4>
+                                        <p className="text-xs text-amber-800 leading-relaxed">
+                                            Importing new questions will add them to the existing pool. If you want to replace the entire bank, clear the database first.
+                                        </p>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-start gap-3 border-amber-200 text-amber-900 hover:bg-amber-100 font-bold"
+                                            onClick={clearAllQuestions}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            Clear All Questions
+                                        </Button>
+                                    </div>
+                                </div>
+                            </Card>
+
+                            <Card className="bg-white p-6">
+                                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">CSV Template Preview</h3>
+                                <div className="bg-gray-900 rounded-xl p-4 text-gray-300 font-mono text-xs overflow-x-auto whitespace-pre">
+                                    {"# Header Row Required\ncategory,questionText,options,correctAnswer,difficulty\nPython,\"Output of 2**3?\",\"6|8|9|16\",8,low\nJavaScript,\"Which is not a data type?\",\"String|Boolean|Number|Float\",Float,medium"}
+                                </div>
+                            </Card>
+                        </div>
+                    )}
 
                     {/* Detail View */}
                     {selectedCandidate ? (
@@ -453,6 +611,29 @@ export default function AdminDashboard() {
                                             {selectedCandidate.finalScore.toFixed(1)}
                                         </div>
                                         <div className="text-sm text-gray-600 mt-1">Final Composite Score</div>
+                                    </div>
+                                )}
+
+                                {/* Admin Actions */}
+                                {selectedCandidate.status === 'MANUAL_REVIEW' && (
+                                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mt-6 space-y-3">
+                                        <h4 className="text-sm font-semibold text-yellow-800 uppercase tracking-wider">Manual Review Action Required</h4>
+                                        <p className="text-xs text-yellow-700">This candidate scored between 50-74.9 on their audio assessment and requires human review of all 4 scores above to make a final decision.</p>
+                                        <div className="flex gap-3 pt-2">
+                                            <Button
+                                                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                                onClick={() => updateStatus(selectedCandidate.id, 'SELECTED')}
+                                            >
+                                                Approve / Select
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2"
+                                                onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL')}
+                                            >
+                                                Reject Candidate
+                                            </Button>
+                                        </div>
                                     </div>
                                 )}
                             </CardContent>

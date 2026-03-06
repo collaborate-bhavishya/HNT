@@ -11,6 +11,17 @@ export class AssessmentController {
         return this.assessmentService.verifyToken(token);
     }
 
+    @Post(':token/start')
+    async startAssessment(
+        @Param('token') token: string,
+        @Body('topic') topic: string
+    ) {
+        if (!topic) {
+            throw new BadRequestException('Topic is required parameter');
+        }
+        return this.assessmentService.startAssessment(token, topic);
+    }
+
     @Post(':token/submit')
     @UseInterceptors(FileInterceptor('audio'))
     async submitAssessment(

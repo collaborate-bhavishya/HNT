@@ -19,6 +19,14 @@ export class ApplicationsController {
         return this.applicationsService.submitApplication(createApplicationDto, file);
     }
 
+    @Post(':id/status')
+    async updateCandidateStatus(
+        @Param('id') id: string,
+        @Body('status') status: string
+    ) {
+        return this.applicationsService.updateCandidateStatus(id, status);
+    }
+
     @Get()
     async getAllApplications() {
         return this.applicationsService.getAllCandidates();

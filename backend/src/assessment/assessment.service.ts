@@ -36,46 +36,94 @@ export class AssessmentService {
             throw new BadRequestException('This assessment link has expired.');
         }
 
-        // Return questions for the assessment
-        const questions = [
-            {
-                id: 1,
-                questionText: 'Which teaching method is most effective for visual learners?',
-                options: ['Lecture-based teaching', 'Diagrams and flowcharts', 'Audio recordings', 'Group discussions'],
-                correctAnswer: 1,
-            },
-            {
-                id: 2,
-                questionText: 'What is the primary goal of formative assessment?',
-                options: ['To assign final grades', 'To monitor student learning and provide feedback', 'To rank students', 'To evaluate the teacher'],
-                correctAnswer: 1,
-            },
-            {
-                id: 3,
-                questionText: 'Which of the following best describes differentiated instruction?',
-                options: ['Teaching the same content to all students', 'Tailoring instruction to meet individual needs', 'Using only digital resources', 'Focusing only on advanced students'],
-                correctAnswer: 1,
-            },
-            {
-                id: 4,
-                questionText: 'What is Bloom\'s Taxonomy primarily used for?',
-                options: ['Classroom decoration', 'Classifying educational learning objectives', 'Student attendance tracking', 'Parent communication'],
-                correctAnswer: 1,
-            },
-            {
-                id: 5,
-                questionText: 'Which classroom management strategy is most proactive?',
-                options: ['Punishing misbehavior', 'Ignoring disruptions', 'Setting clear expectations from day one', 'Sending students to the principal'],
-                correctAnswer: 2,
-            },
-        ];
+        let questions: any[] = [];
+        if ((assessment as any).mcqQuestions) {
+            questions = (assessment as any).mcqQuestions as any[];
+            // Remove correctAnswer from the client response to prevent cheating
+            questions = questions.map(q => {
+                const { correctAnswer, ...rest } = q;
+                return rest;
+            });
+        }
 
         return {
             message: 'Token verification successful',
             candidateName: `${assessment.candidate.firstName} ${assessment.candidate.lastName}`,
             status: assessment.status,
-            questions,
+            topic: (assessment as any).topic,
+            questions, // might be empty if not started yet
             duration: 30 * 60, // 30 minutes in seconds
+        };
+    }
+
+    async startAssessment(token: string, topic: string) {
+        const assessment = await this.prisma.assessment.findUnique({
+            where: { token }
+        });
+
+        if (!assessment) throw new NotFoundException('Assessment not found');
+        if (assessment.status === 'COMPLETED' || assessment.status === 'AUDIO_PROCESSING') {
+            throw new BadRequestException('Already submitted');
+        }
+
+        // Fetch questions from Question model based on topic
+        const lowQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'low' } });
+        const mediumQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'medium' } });
+        const highQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'high' } });
+
+        // Shuffle helper
+        const shuffle = (array: any[]) => array.sort(() => 0.5 - Math.random());
+
+        // We want 20 questions: 8 low (40%), 6 medium (30%), 6 high (30%)
+        let selectedQuestions = [
+            ...shuffle(lowQuestions).slice(0, 8),
+            ...shuffle(mediumQuestions).slice(0, 6),
+            ...shuffle(highQuestions).slice(0, 6),
+        ];
+
+        // If the DB doesn't have 20 questions yet, we pad with whatever is available
+        if (selectedQuestions.length < 20) {
+            const allAvailable = await this.prisma.question.findMany({ where: { category: topic } });
+            selectedQuestions = shuffle(allAvailable).slice(0, 20);
+        }
+
+        // Fallback hardcoded if absolutely 0 questions exist in the DB (for testing before CSV is loaded)
+        if (selectedQuestions.length === 0) {
+            selectedQuestions = [
+                {
+                    id: '1',
+                    category: topic,
+                    questionText: `What is the primary function of ${topic}?`,
+                    options: ['To compile code', 'To write logic', 'To style pages', 'To manage databases'],
+                    correctAnswer: 'To write logic',
+                    difficulty: 'low',
+                    createdAt: new Date()
+                }
+            ];
+        }
+
+        // Shuffle the final selected questions
+        selectedQuestions = shuffle(selectedQuestions);
+
+        const updatedAssessment = await this.prisma.assessment.update({
+            where: { token },
+            data: {
+                topic,
+                mcqQuestions: selectedQuestions as any[],
+                startedAt: new Date(),
+                status: 'IN_PROGRESS'
+            } as any
+        });
+
+        const clientQuestions = selectedQuestions.map(q => {
+            const { correctAnswer, ...rest } = q;
+            return rest;
+        });
+
+        return {
+            message: 'Assessment started',
+            questions: clientQuestions,
+            duration: 30 * 60,
         };
     }
 
@@ -93,8 +141,14 @@ export class AssessmentService {
             throw new BadRequestException('Only audio files are allowed');
         }
 
-        // Score MCQs against correct answers
-        const correctAnswers: Record<number, number> = { 1: 1, 2: 1, 3: 1, 4: 1, 5: 2 };
+        // Reconstruct correctAnswers map from stored mcqQuestions
+        const correctAnswers: Record<string, any> = {};
+        const storedQuestions = ((assessment as any).mcqQuestions as any[]) || [];
+
+        for (const q of storedQuestions) {
+            correctAnswers[q.id] = q.correctAnswer;
+        }
+
         let mcqCorrect = 0;
         let mcqAnswers: any[] = [];
         try {
@@ -102,30 +156,51 @@ export class AssessmentService {
         } catch { mcqAnswers = []; }
 
         for (const answer of mcqAnswers) {
-            if (correctAnswers[answer.questionId] === answer.selectedOption) {
-                mcqCorrect++;
+            const correctAnswer = correctAnswers[answer.questionId];
+
+            // Some legacy compatibility: if they were using 0-index based correctAnswer in UI
+            if (typeof correctAnswer === 'number') {
+                if (correctAnswer === answer.selectedOption) {
+                    mcqCorrect++;
+                }
+            } else if (typeof correctAnswer === 'string') {
+                // If options logic changed and they send back string or index, check accordingly:
+                // If they send the index of selected option, we need to compare to the index or string
+                // But typically options are strings. We will assume the UI sends the index in selectedOption
+                // We'll map the index back to option text or assume correctly.
+                const questionObj = storedQuestions.find(sq => sq.id === answer.questionId);
+                const options = questionObj?.options as string[];
+                if (options && options[answer.selectedOption] === correctAnswer) {
+                    mcqCorrect++;
+                }
             }
         }
-        const mcqScore = Math.round((mcqCorrect / Object.keys(correctAnswers).length) * 100);
+
+        let mcqScore = 0;
+        if (storedQuestions.length > 0) {
+            mcqScore = Math.round((mcqCorrect / storedQuestions.length) * 100);
+        }
 
         if (mcqScore >= 60) {
-            await this.prisma.assessment.update({
-                where: { id: assessment.id },
-                data: {
-                    mcqScore,
-                    status: 'AUDIO_PROCESSING',
-                    completedAt: new Date(),
-                },
-            });
-
-            // Pass audio buffer as base64 through the queue for Azure processing
             let audioBase64: string | null = null;
             let audioMimeType: string | null = null;
+            let audioDriveLink: string | null = null;
 
             if (file && file.buffer) {
                 audioBase64 = file.buffer.toString('base64');
                 audioMimeType = file.mimetype;
+                audioDriveLink = 'https://mock-google-drive.com/audio/' + file.originalname;
             }
+
+            await this.prisma.assessment.update({
+                where: { id: assessment.id },
+                data: {
+                    mcqScore,
+                    audioDriveLink,
+                    status: 'AUDIO_PROCESSING',
+                    completedAt: new Date(),
+                },
+            });
 
             await this.audioQueue.add('process-audio', {
                 assessmentId: assessment.id,

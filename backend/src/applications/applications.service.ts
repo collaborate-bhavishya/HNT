@@ -139,10 +139,24 @@ export class ApplicationsService {
                         aiSpeechTranscript: true,
                         completedAt: true,
                         createdAt: true,
+                        audioDriveLink: true,
                     },
                     orderBy: { createdAt: 'desc' },
                 },
             },
         });
+    }
+
+    async updateCandidateStatus(id: string, status: string) {
+        const candidate = await this.prisma.candidate.update({
+            where: { id },
+            data: { status }
+        });
+
+        if (status === 'SELECTED' || status === 'REJECTED_FINAL') {
+            await this.notifications.sendFinalDecisionEmail(candidate.email, status);
+        }
+
+        return candidate;
     }
 }

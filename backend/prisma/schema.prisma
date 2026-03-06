@@ -44,6 +44,8 @@ model Assessment {
   expiresAt   DateTime
   startedAt   DateTime?
   completedAt DateTime?
+  topic       String?
+  mcqQuestions Json?
   antiCheat   Json?
   audioDriveLink String?
   aiSpeechRawScores Json?
