@@ -41,9 +41,9 @@ export class ApplicationAiWorker extends WorkerHost {
                 try {
                     // Score Motivation
                     const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-                    let motivationPrompt = 'Evaluate the candidate motivation. Reply with a score between 1 and 10, nothing else.';
+                    let motivationPrompt = 'Evaluate the candidate intent to work the company based on the answer written by him/her. Reply with a score between 1 and 10, nothing else.';
                     if (candidate.motivation) {
-                        motivationPrompt = `Evaluate the candidate short motivation text based on enthusiasm, clarity, and relevance to teaching. Motivation: ${candidate.motivation}. Reply with a score between 1 and 10, nothing else, just the number.`;
+                        motivationPrompt = `Evaluate the candidate intent to work the company based on the answer written by him/her: "${candidate.motivation}". Reply with a score between 1 and 10, nothing else.`;
                     }
 
                     const mResult = await model.generateContent(motivationPrompt);
