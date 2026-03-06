@@ -79,12 +79,12 @@ export class AudioWorker extends WorkerHost {
             const applicationScore = candidate.applicationScore || 0;
             const mcqScore = assessment.mcqScore || 0;
 
-            // Final composite score: 30% application AI + 40% MCQ + 30% audio
+            // Final composite score just for reference
             const finalScore = (applicationScore * 0.3) + (mcqScore * 0.4) + (audioScore * 0.3);
 
             let newStatus = 'REJECTED_FINAL';
-            if (finalScore >= 75) newStatus = 'SELECTED';
-            else if (finalScore >= 60) newStatus = 'MANUAL_REVIEW';
+            if (audioScore >= 75) newStatus = 'SELECTED';
+            else if (audioScore >= 50) newStatus = 'MANUAL_REVIEW';
 
             await this.prisma.assessment.update({
                 where: { id: assessment.id },

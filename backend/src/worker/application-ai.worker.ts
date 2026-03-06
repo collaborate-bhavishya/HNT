@@ -81,38 +81,16 @@ Reply with ONLY a single number between 1 and 10. No other text or explanation.`
 
             const applicationScore = (aiMotivationScore + aiCvScore) / 2;
 
-            // Threshold 6 for testing
-            const newStatus = applicationScore >= 6 ? 'TESTING' : 'REJECTED_FORM';
-
             await this.prisma.candidate.update({
                 where: { id: candidate.id },
                 data: {
                     aiMotivationScore,
                     aiCvScore,
-                    applicationScore,
-                    status: newStatus
+                    applicationScore
                 }
             });
 
-            if (newStatus === 'TESTING') {
-                // Generate token natively, maybe in Assessment service normally, but here we can create an Assessment directly
-                // Wait, creating assessment is better here since we want to send the link!
-                const assessment = await this.prisma.assessment.create({
-                    data: {
-                        candidateId: candidate.id,
-                        token: require('crypto').randomUUID(),
-                        expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000), // 72 hours
-                        status: 'PENDING'
-                    }
-                });
-                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-                const link = `${frontendUrl}/assessment/${assessment.token}`;
-                await this.notifications.sendAssessmentLinkEmail(candidate.email, link);
-            } else if (newStatus === 'REJECTED_FORM') {
-                await this.notifications.sendFormRejectionEmail(candidate.email);
-            }
-
-            this.logger.log(`Successfully processed candidate ${job.data.candidateId}, new status: ${newStatus}`);
+            this.logger.log(`Successfully processed candidate ${job.data.candidateId} AI Application scores`);
         } catch (err) {
             this.logger.error(`Error processing application ai job ${job.id}`, err);
             throw err;
