@@ -3,11 +3,15 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma.service';
 
+import { NotificationsService } from '../notifications/notifications.service';
+
 @Injectable()
 export class AssessmentService {
     constructor(
         private readonly prisma: PrismaService,
         @InjectQueue('audio-processing-queue') private audioQueue: Queue,
+        @InjectQueue('application-ai-queue') private aiQueue: Queue,
+        private notifications: NotificationsService
     ) { }
 
     async verifyToken(token: string) {
@@ -104,32 +108,56 @@ export class AssessmentService {
         }
         const mcqScore = Math.round((mcqCorrect / Object.keys(correctAnswers).length) * 100);
 
-        await this.prisma.assessment.update({
-            where: { id: assessment.id },
-            data: {
-                mcqScore,
-                status: 'AUDIO_PROCESSING',
-                completedAt: new Date(),
-            },
-        });
+        if (mcqScore >= 60) {
+            await this.prisma.assessment.update({
+                where: { id: assessment.id },
+                data: {
+                    mcqScore,
+                    status: 'AUDIO_PROCESSING',
+                    completedAt: new Date(),
+                },
+            });
 
-        // Pass audio buffer as base64 through the queue for Azure processing
-        let audioBase64: string | null = null;
-        let audioMimeType: string | null = null;
+            // Pass audio buffer as base64 through the queue for Azure processing
+            let audioBase64: string | null = null;
+            let audioMimeType: string | null = null;
 
-        if (file && file.buffer) {
-            audioBase64 = file.buffer.toString('base64');
-            audioMimeType = file.mimetype;
-            console.log(`[AssessmentService] Audio file received: ${file.mimetype}, buffer size: ${file.buffer.length} bytes, base64 size: ${audioBase64.length} chars`);
+            if (file && file.buffer) {
+                audioBase64 = file.buffer.toString('base64');
+                audioMimeType = file.mimetype;
+            }
+
+            await this.audioQueue.add('process-audio', {
+                assessmentId: assessment.id,
+                audioBase64,
+                audioMimeType,
+            });
+
+            // trigger AI scoring for Motivation and CV now that MCQ passed
+            await this.aiQueue.add('process-application-ai', { candidateId: assessment.candidateId });
+
         } else {
-            console.warn(`[AssessmentService] No audio buffer available. file exists: ${!!file}, buffer exists: ${!!(file && file.buffer)}`);
-        }
+            // MCQ Failed
+            await this.prisma.assessment.update({
+                where: { id: assessment.id },
+                data: {
+                    mcqScore,
+                    status: 'COMPLETED',
+                    completedAt: new Date(),
+                },
+            });
 
-        await this.audioQueue.add('process-audio', {
-            assessmentId: assessment.id,
-            audioBase64,
-            audioMimeType,
-        });
+            const updatedCandidate = await this.prisma.candidate.update({
+                where: { id: assessment.candidateId },
+                data: {
+                    status: 'REJECTED_FINAL',
+                    rejectionReason: 'MCQ Failed - Score below threshold (60%)'
+                }
+            });
+
+            // Send rejection email right away
+            await this.notifications.sendFormRejectionEmail(updatedCandidate.email);
+        }
 
         return {
             status: 'ASSESSMENT_COMPLETED',

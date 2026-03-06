@@ -71,9 +71,9 @@ export class ApplicationsService {
 
         let status = 'APPLIED';
         if (!evalResult.passed) {
-            status = 'REJECTED';
+            status = 'REJECTED_FORM';
         } else {
-            status = 'AI_SCORING';
+            status = 'TESTING';
         }
 
         const candidate = await this.prisma.candidate.create({
@@ -95,9 +95,19 @@ export class ApplicationsService {
             },
         });
 
-        if (status === 'AI_SCORING') {
-            await this.aiQueue.add('process-application-ai', { candidateId: candidate.id });
-        } else if (status === 'REJECTED') {
+        if (status === 'TESTING') {
+            const assessment = await this.prisma.assessment.create({
+                data: {
+                    candidateId: candidate.id,
+                    token: require('crypto').randomUUID(),
+                    expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000), // 72 hours
+                    status: 'PENDING'
+                }
+            });
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            const link = `${frontendUrl}/assessment/${assessment.token}`;
+            await this.notifications.sendAssessmentLinkEmail(candidate.email, link);
+        } else if (status === 'REJECTED_FORM') {
             await this.notifications.sendFormRejectionEmail(candidate.email);
         }
 
