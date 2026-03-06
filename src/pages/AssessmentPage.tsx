@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardDescription, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
 import { AlertCircle, Clock, Mic, Square, Play, Pause, CheckCircle2, Volume2, Shield, BookOpen, Headphones, Timer, Eye, Ban } from 'lucide-react';
