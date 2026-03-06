@@ -97,6 +97,7 @@ export default function ApplyPage() {
 
     const priorExperience = watch('priorExperience');
     const currentlyWorking = watch('currentlyWorking');
+    const cvFile = watch('cvFile');
 
     const fieldsByStep = [
         ['fullName', 'email', 'phone', 'city'],
@@ -413,11 +414,26 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
 
                                 <div className="space-y-2">
                                     <Label>Resume / CV (PDF)</Label>
-                                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                    <label className={cn(
+                                        "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors",
+                                        cvFile && cvFile.length > 0
+                                            ? "border-green-500 bg-green-50 hover:bg-green-100"
+                                            : "border-gray-300 bg-gray-50 hover:bg-gray-100"
+                                    )}>
                                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                            <UploadCloud className="w-8 h-8 mb-2 text-gray-500" />
-                                            <p className="text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                            <p className="text-xs text-gray-500 mt-1">PDF (MAX. 5MB)</p>
+                                            {cvFile && cvFile.length > 0 ? (
+                                                <>
+                                                    <CheckCircle2 className="w-8 h-8 mb-2 text-green-500" />
+                                                    <p className="text-sm text-green-700 font-semibold">{cvFile[0].name}</p>
+                                                    <p className="text-xs text-green-600 mt-1">Ready to upload</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <UploadCloud className="w-8 h-8 mb-2 text-gray-500" />
+                                                    <p className="text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                                                    <p className="text-xs text-gray-500 mt-1">PDF (MAX. 5MB)</p>
+                                                </>
+                                            )}
                                         </div>
                                         <input type="file" className="hidden" accept=".pdf" {...register('cvFile')} />
                                     </label>
