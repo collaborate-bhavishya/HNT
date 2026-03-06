@@ -33,29 +33,50 @@ export class ApplicationAiWorker extends WorkerHost {
         }
 
         try {
-            // Prompt Gemini using motivation
-            const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-            let prompt = 'Evaluate the candidate motivation. Reply with a score between 1 and 10, nothing else.';
-            if (candidate.motivation) {
-                prompt = `Evaluate the candidate motivation based on their experience. Motivation: \${candidate.motivation}. Reply with a score between 1 and 10, nothing else.`;
-            }
-
             let aiMotivationScore = 5;
+            let aiCvScore = 5; // Default if no CV or API fails
 
             // In a real environment with real key:
             if (process.env.GEMINI_API_KEY) {
                 try {
-                    const result = await model.generateContent(prompt);
-                    const responsePart = result.response.text();
-                    const scoreParsed = parseFloat(responsePart.trim());
-                    if (!isNaN(scoreParsed)) aiMotivationScore = scoreParsed;
+                    // Score Motivation
+                    const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                    let motivationPrompt = 'Evaluate the candidate motivation. Reply with a score between 1 and 10, nothing else.';
+                    if (candidate.motivation) {
+                        motivationPrompt = `Evaluate the candidate short motivation text based on enthusiasm, clarity, and relevance to teaching. Motivation: ${candidate.motivation}. Reply with a score between 1 and 10, nothing else, just the number.`;
+                    }
+
+                    const mResult = await model.generateContent(motivationPrompt);
+                    const mParsed = parseFloat(mResult.response.text().trim());
+                    if (!isNaN(mParsed)) aiMotivationScore = mParsed;
+
+                    // Score CV if available
+                    // @ts-ignore - Ignoring type error because Prisma schema update might be delayed in IDE
+                    if (candidate.cvText) {
+                        // @ts-ignore
+                        const cvPrompt = `You are an HR evaluator for an EdTech company hiring teachers.
+Review the following candidate CV text and rate it from 1 to 10 based on:
+- Relevant teaching or tutoring experience
+- Educational background
+- Clear presentation of skills
+
+CV Text:
+${candidate.cvText.substring(0, 10000)}
+
+Reply with ONLY a single number between 1 and 10. No other text or explanation.`;
+
+                        const cvResult = await model.generateContent(cvPrompt);
+                        const cvParsed = parseFloat(cvResult.response.text().trim());
+                        if (!isNaN(cvParsed)) aiCvScore = cvParsed;
+                    } else {
+                        // Keep dummy or 5 if no CV uploaded
+                        aiCvScore = 5;
+                    }
                 } catch (e) {
                     this.logger.error("Gemini api failed", e);
                     throw e; // for retry mechanism
                 }
             }
-
-            const aiCvScore = 7; // Dummy for now
 
             const applicationScore = (aiMotivationScore + aiCvScore) / 2;
 

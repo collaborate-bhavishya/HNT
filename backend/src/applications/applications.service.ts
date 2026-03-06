@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma.service';
 import { ApplicationEvaluatorService } from './application-evaluator.service';
 import { CreateApplicationDto } from './create-application.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+const pdfParse = require('pdf-parse');
 
 @Injectable()
 export class ApplicationsService {
@@ -57,6 +58,17 @@ export class ApplicationsService {
         // Mock Google Drive Upload
         const cvDriveLink = file ? 'https://mock-google-drive.com/file/' + file.filename : null;
 
+        let cvText: string | null = null;
+        if (file && file.buffer) {
+            try {
+                const pdfData = await pdfParse(file.buffer);
+                cvText = pdfData.text;
+                if (cvText && cvText.length > 20000) cvText = cvText.substring(0, 20000);
+            } catch (err) {
+                console.error('Error parsing PDF:', err);
+            }
+        }
+
         let status = 'APPLIED';
         if (!evalResult.passed) {
             status = 'REJECTED';
@@ -76,6 +88,7 @@ export class ApplicationsService {
                 currentLocation: dto.currentLocation,
                 motivation: dto.motivation,
                 cvDriveLink,
+                cvText,
                 status,
                 layer1Score: evalResult.score,
                 rejectionReason: evalResult.rejectionReason,

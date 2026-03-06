@@ -19,6 +19,7 @@ model Candidate {
   currentLocation String?
   cvDriveLink     String?
   motivation      String?
+  cvText          String?
   status          String       @default("APPLIED")
   rejectionReason String?
   layer1Score     Float?
