@@ -35,14 +35,22 @@ export class ApplicationsService {
             throw new BadRequestException('Candidate with this email or phone already applied');
         }
 
+        // Parse boolean fields (multipart form-data sends strings)
+        const toBool = (v: any): boolean | undefined => {
+            if (v === undefined || v === null) return undefined;
+            if (v === true || v === 'true') return true;
+            if (v === false || v === 'false') return false;
+            return undefined;
+        };
+
         // Evaluate
         const evalResult = this.evaluatorService.evaluate({
             position: dto.position,
             experience: Number(dto.experience),
             expectedSalary: dto.expectedSalary ? Number(dto.expectedSalary) : undefined,
-            available120Hours: dto.available120Hours,
-            openToWeekends: dto.openToWeekends,
-            comfortableNightShifts: dto.comfortableNightShifts,
+            available120Hours: toBool(dto.available120Hours),
+            openToWeekends: toBool(dto.openToWeekends),
+            comfortableNightShifts: toBool(dto.comfortableNightShifts),
             motivation: dto.motivation,
         });
 
