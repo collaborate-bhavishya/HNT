@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
-import { AlertCircle, Clock, Mic, Square, Play, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Clock, Mic, Square, Play, Pause, CheckCircle2, Volume2 } from 'lucide-react';
 
 const EXAM_DURATION_SECONDS = 30 * 60; // Fallback
 
@@ -32,6 +32,8 @@ export default function AssessmentPage() {
   // Audio state
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackProgress, setPlaybackProgress] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -355,6 +357,15 @@ export default function AssessmentPage() {
                     Waveform visualization will appear here
                   </div>
                 )}
+                {isPlaying && (
+                  <div className="absolute inset-0 bg-primary-500/10 flex items-center justify-center">
+                    <div className="flex items-center gap-2 text-primary-600 font-medium">
+                      <Volume2 className="w-5 h-5 animate-pulse" />
+                      <span>Playing...</span>
+                    </div>
+                    <div className="absolute bottom-0 left-0 h-1 bg-primary-500 transition-all duration-100" style={{ width: `${playbackProgress}%` }} />
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-4">
@@ -380,9 +391,20 @@ export default function AssessmentPage() {
 
                 {audioUrl && !isRecording && (
                   <Button
-                    variant="secondary"
-                    className="gap-2 h-14 px-8 rounded-full"
+                    variant={isPlaying ? "default" : "secondary"}
+                    className={cn(
+                      "gap-2 h-14 px-8 rounded-full transition-all",
+                      isPlaying && "bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-200"
+                    )}
                     onClick={() => {
+                      if (isPlaying && playbackAudioRef.current) {
+                        // Stop playback
+                        playbackAudioRef.current.pause();
+                        playbackAudioRef.current.currentTime = 0;
+                        setIsPlaying(false);
+                        setPlaybackProgress(0);
+                        return;
+                      }
                       // Stop any existing playback first
                       if (playbackAudioRef.current) {
                         playbackAudioRef.current.pause();
@@ -390,11 +412,26 @@ export default function AssessmentPage() {
                       }
                       const audio = new Audio(audioUrl);
                       playbackAudioRef.current = audio;
+                      setIsPlaying(true);
+                      setPlaybackProgress(0);
+
+                      audio.ontimeupdate = () => {
+                        if (audio.duration) {
+                          setPlaybackProgress((audio.currentTime / audio.duration) * 100);
+                        }
+                      };
+                      audio.onended = () => {
+                        setIsPlaying(false);
+                        setPlaybackProgress(0);
+                      };
                       audio.play();
                     }}
                   >
-                    <Play className="w-5 h-5 fill-current" />
-                    Playback
+                    {isPlaying ? (
+                      <><Pause className="w-5 h-5 fill-current" /> Stop</>
+                    ) : (
+                      <><Play className="w-5 h-5 fill-current" /> Playback</>
+                    )}
                   </Button>
                 )}
               </div>
