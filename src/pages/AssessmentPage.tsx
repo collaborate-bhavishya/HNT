@@ -39,6 +39,7 @@ export default function AssessmentPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>(-1);
   const audioBlobRef = useRef<Blob | null>(null);
+  const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // --- API FETCH ---
   useEffect(() => {
@@ -382,7 +383,13 @@ export default function AssessmentPage() {
                     variant="secondary"
                     className="gap-2 h-14 px-8 rounded-full"
                     onClick={() => {
+                      // Stop any existing playback first
+                      if (playbackAudioRef.current) {
+                        playbackAudioRef.current.pause();
+                        playbackAudioRef.current.currentTime = 0;
+                      }
                       const audio = new Audio(audioUrl);
+                      playbackAudioRef.current = audio;
                       audio.play();
                     }}
                   >
