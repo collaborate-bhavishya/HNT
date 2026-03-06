@@ -57,8 +57,9 @@ export class ApplicationAiWorker extends WorkerHost {
                         const cvPrompt = `You are an HR evaluator for an EdTech company hiring teachers.
 Review the following candidate CV text and rate it from 1 to 10 based on:
 - Relevant teaching or tutoring experience
-- Educational background
+- Educational background (Score higher for candidates from top Indian cities and good colleges)
 - Clear presentation of skills
+- Look for clues regarding their teaching abilities, student engagement, and communication skills - if found, score them higher than others.
 
 CV Text:
 ${candidate.cvText.substring(0, 10000)}
