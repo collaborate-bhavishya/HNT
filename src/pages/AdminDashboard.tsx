@@ -5,7 +5,7 @@ import { cn } from '../lib/utils';
 import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2 } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://hnt.onrender.com';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 type CandidateStatus = 'APPLIED' | 'REJECTED' | 'AI_SCORING' | 'REJECTED_FORM' | 'TESTING' | 'AUDIO_PROCESSING' | 'SELECTED' | 'MANUAL_REVIEW' | 'REJECTED_FINAL' | 'AUDIO_FAILED';
 
