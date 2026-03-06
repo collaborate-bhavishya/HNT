@@ -19,6 +19,8 @@ interface Candidate {
     experience: number;
     expectedSalary: number | null;
     currentLocation: string | null;
+    cvDriveLink: string | null;
+    cvText: string | null;
     motivation: string | null;
     status: CandidateStatus;
     rejectionReason: string | null;
@@ -38,6 +40,7 @@ interface Assessment {
     mcqScore: number | null;
     audioScore: number | null;
     finalScore: number | null;
+    audioDriveLink: string | null;
     aiSpeechRawScores: any;
     aiSpeechTranscript: string | null;
     completedAt: string | null;
@@ -321,6 +324,23 @@ export default function AdminDashboard() {
                                             <div className="text-blue-900">{selectedCandidate.motivation}</div>
                                         </div>
                                     )}
+                                    {selectedCandidate.cvDriveLink && (
+                                        <div className="bg-gray-50 border p-3 rounded-lg text-sm flex justify-between items-center">
+                                            <div>
+                                                <div className="text-gray-500 text-xs font-medium mb-1">CV File</div>
+                                                <div className="text-gray-900 truncate max-w-[200px]">{selectedCandidate.cvDriveLink.split('/').pop()}</div>
+                                            </div>
+                                            <a href={selectedCandidate.cvDriveLink} target="_blank" rel="noreferrer" className="text-primary-600 hover:text-primary-700 text-xs font-semibold">
+                                                Mock View
+                                            </a>
+                                        </div>
+                                    )}
+                                    {selectedCandidate.cvText && (
+                                        <div className="bg-gray-50 border p-3 rounded-lg text-sm">
+                                            <div className="text-gray-500 text-xs font-medium mb-1">Extracted CV Text (Preview)</div>
+                                            <div className="text-gray-600 text-xs max-h-32 overflow-y-auto whitespace-pre-wrap">{selectedCandidate.cvText.substring(0, 500)}...</div>
+                                        </div>
+                                    )}
                                     {selectedCandidate.rejectionReason && (
                                         <div className="bg-red-50 border border-red-100 p-3 rounded-lg text-sm">
                                             <div className="text-red-600 text-xs font-medium mb-1">Rejection Reason</div>
@@ -374,6 +394,16 @@ export default function AdminDashboard() {
                                                         <div className="text-xs text-gray-500 mt-1">Final Score</div>
                                                     </div>
                                                 </div>
+
+                                                {/* Audio Playback Link */}
+                                                {a.audioDriveLink && (
+                                                    <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg flex items-center justify-between">
+                                                        <span className="text-purple-700 text-xs font-semibold">Audio Recording</span>
+                                                        <a href={a.audioDriveLink} target="_blank" rel="noreferrer" className="text-purple-600 hover:text-purple-800 text-xs font-medium bg-white px-3 py-1 rounded-full shadow-sm border border-purple-200">
+                                                            Mock Listen
+                                                        </a>
+                                                    </div>
+                                                )}
 
                                                 {/* Azure Speech Raw Scores */}
                                                 {a.aiSpeechRawScores && Object.keys(a.aiSpeechRawScores).length > 0 && !a.aiSpeechRawScores.note && (
