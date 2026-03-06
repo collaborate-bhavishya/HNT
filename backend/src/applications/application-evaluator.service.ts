@@ -12,29 +12,54 @@ export class ApplicationEvaluatorService {
         position: string;
         experience: number;
         expectedSalary?: number;
+        available120Hours?: boolean;
+        openToWeekends?: boolean;
+        comfortableNightShifts?: boolean;
+        motivation?: string;
     }): EvaluationResult {
-        // Hard rejection rules
+        // === INSTANT REJECTION RULES ===
+
+        // Rule 1: Minimum 1 year experience (basic teaching maturity)
         if (data.experience < 1) {
             return { passed: false, score: 0, rejectionReason: 'Minimum 1 year experience required' };
         }
 
-        if (data.position === 'Senior Teacher' && data.experience < 3) {
-            return { passed: false, score: 0, rejectionReason: 'Senior Teacher requires 3+ years experience' };
+        // Rule 2: Must be available for 120 hours/month (operational requirement)
+        if (data.available120Hours === false) {
+            return { passed: false, score: 0, rejectionReason: 'Must be available for 120 hours/month' };
         }
 
-        if (data.expectedSalary && data.expectedSalary > 200000) {
-            return { passed: false, score: 0, rejectionReason: 'Salary expectation exceeds budget' };
+        // Rule 3: Must be open to weekends (most classes happen here)
+        if (data.openToWeekends === false) {
+            return { passed: false, score: 0, rejectionReason: 'Must be open to working weekends' };
         }
 
-        // Scoring logic
-        let score = 50;
+        // === SCORING MODEL (0-100) ===
+
+        // Base score: 40 for all passing candidates
+        let score = 40;
+
+        // Experience score
         if (data.experience >= 5) score += 30;
         else if (data.experience >= 3) score += 20;
-        else score += 10;
+        else score += 10; // 1-2 years
 
-        if (data.expectedSalary && data.expectedSalary <= 100000) score += 20;
-        else if (data.expectedSalary && data.expectedSalary <= 150000) score += 10;
+        // Availability score: night shifts
+        if (data.comfortableNightShifts) score += 10;
 
-        return { passed: true, score: Math.min(score, 100) };
+        // Motivation quality (simple length check before Gemini)
+        const motivationLength = (data.motivation || '').length;
+        if (motivationLength > 150) score += 10;
+        else if (motivationLength > 50) score += 5;
+
+        // Cap at 100
+        score = Math.min(score, 100);
+
+        // === PASS/FAIL THRESHOLD ===
+        if (score < 50) {
+            return { passed: false, score, rejectionReason: 'Application did not meet minimum evaluation score' };
+        }
+
+        return { passed: true, score };
     }
 }

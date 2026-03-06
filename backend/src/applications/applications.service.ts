@@ -40,6 +40,10 @@ export class ApplicationsService {
             position: dto.position,
             experience: Number(dto.experience),
             expectedSalary: dto.expectedSalary ? Number(dto.expectedSalary) : undefined,
+            available120Hours: dto.available120Hours,
+            openToWeekends: dto.openToWeekends,
+            comfortableNightShifts: dto.comfortableNightShifts,
+            motivation: dto.motivation,
         });
 
         // Mock Google Drive Upload

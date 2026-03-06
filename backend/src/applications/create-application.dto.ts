@@ -1,5 +1,5 @@
-import { IsString, IsEmail, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsEmail, IsNotEmpty, IsNumber, IsOptional, IsBoolean } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 
 export class CreateApplicationDto {
     @IsString()
@@ -34,6 +34,21 @@ export class CreateApplicationDto {
     @IsOptional()
     @IsString()
     currentLocation?: string;
+
+    @IsOptional()
+    @Transform(({ value }) => value === 'true' || value === true)
+    @IsBoolean()
+    available120Hours?: boolean;
+
+    @IsOptional()
+    @Transform(({ value }) => value === 'true' || value === true)
+    @IsBoolean()
+    openToWeekends?: boolean;
+
+    @IsOptional()
+    @Transform(({ value }) => value === 'true' || value === true)
+    @IsBoolean()
+    comfortableNightShifts?: boolean;
 
     @IsString()
     @IsNotEmpty()
