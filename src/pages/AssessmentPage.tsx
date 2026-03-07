@@ -24,6 +24,7 @@ export default function AssessmentPage() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [topic, setTopic] = useState<string | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<string>('');
+  const [showTopicSelection, setShowTopicSelection] = useState(false);
 
   // Timer state
   const [timeLeft, setTimeLeft] = useState(EXAM_DURATION_SECONDS);
@@ -284,8 +285,92 @@ export default function AssessmentPage() {
     );
   }
 
-  // Topic Selection View
-  if (!started) {
+  // 1. Instruction View
+  if (!started && !showTopicSelection) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50">
+          <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
+            <img src="/brightchamps-logo.svg" alt="BrightChamps" className="h-8" />
+            <span className="text-sm font-medium text-gray-500">Teacher Assessment Portal</span>
+          </div>
+        </nav>
+
+        <div className="max-w-4xl mx-auto px-6 py-10">
+          <Card className="p-8 space-y-8 shadow-xl border-0 overflow-hidden relative">
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+              <BookOpen className="w-32 h-32" />
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold text-gray-900">Assessment Instructions</h1>
+              <p className="text-gray-500 text-lg">Please read carefully before starting your technical evaluation.</p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="p-6 rounded-2xl bg-blue-50/50 border border-blue-100 space-y-4 transition-all hover:shadow-md">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Section 1: Subject MCQ</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed mt-1">
+                    20 multiple-choice questions tailored to your chosen domain. Covers easy (40%), medium (30%), and hard (30%) difficulty levels.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-4 transition-all hover:shadow-md">
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <Mic className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Section 2: Audio Test</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed mt-1">
+                    Explain a technical concept as if teaching a child. We evaluate clarity, communication style, and engagement.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-orange-50/50 border border-orange-100 space-y-4">
+              <div className="flex items-center gap-2 text-orange-800 font-bold uppercase tracking-widest text-xs">
+                <AlertCircle className="w-4 h-4" /> Global Guidelines
+              </div>
+              <ul className="grid sm:grid-cols-2 gap-3 text-sm text-orange-900/80">
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  30 Minutes Total Duration
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  No Tab Switching (3 Warnings)
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  Functional Microphone Required
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  Camera Monitoring Enabled
+                </li>
+              </ul>
+            </div>
+
+            <Button
+              className="w-full h-14 text-xl bg-primary-600 hover:bg-primary-700 rounded-xl shadow-lg transition-all"
+              onClick={() => setShowTopicSelection(true)}
+            >
+              Start the Assessment
+            </Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Topic Selection View
+  if (!started && showTopicSelection) {
     const topics = [
       { id: 'Python', icon: '🐍' },
       { id: 'C++', icon: '⚙️' },
@@ -310,9 +395,9 @@ export default function AssessmentPage() {
               <div className="mx-auto w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
                 <BookOpen className="w-8 h-8 text-blue-600" />
               </div>
-              <CardTitle className="text-3xl font-bold">Select Your Domain</CardTitle>
+              <CardTitle className="text-3xl font-bold">Choose Your Topic</CardTitle>
               <CardDescription className="text-lg">
-                Choose the technology stack you want to be evaluated on.
+                Your MCQ section will be generated based on this choice.
               </CardDescription>
             </div>
 
@@ -334,21 +419,16 @@ export default function AssessmentPage() {
               ))}
             </div>
 
-            <div className="pt-6 border-t font-sans">
-              <div className="bg-orange-50 rounded-xl p-4 flex gap-3 mb-6 border border-orange-100">
-                <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0" />
-                <div className="text-sm text-orange-800 space-y-1">
-                  <p className="font-bold uppercase tracking-wider text-xs">Guidelines</p>
-                  <p>30 min duration • No tab switching • Microphone required</p>
-                </div>
-              </div>
-
+            <div className="pt-6 border-t flex gap-4">
+              <Button variant="outline" className="h-14 px-8 rounded-xl" onClick={() => setShowTopicSelection(false)}>
+                Back
+              </Button>
               <Button
-                className="w-full h-14 text-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl shadow-lg transition-all"
+                className="flex-1 h-14 text-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl shadow-lg transition-all"
                 onClick={startAssessmentByTopic}
                 disabled={!selectedTopic || loadingInitial}
               >
-                {loadingInitial ? 'Initializing...' : 'Start Assessment'}
+                {loadingInitial ? 'Initializing...' : 'Proceed to Questions'}
               </Button>
             </div>
           </Card>
