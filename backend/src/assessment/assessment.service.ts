@@ -182,34 +182,51 @@ export class AssessmentService {
         }
 
         if (mcqScore >= 60) {
-            let audioBase64: string | null = null;
-            let audioMimeType: string | null = null;
             let audioDriveLink: string | null = null;
+            try {
+                let audioFilePath: string | null = null;
+                if (file && file.buffer) {
+                    const fs = require('fs');
+                    const path = require('path');
+                    const uploadDir = path.join(process.cwd(), 'uploads');
+                    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-            if (file && file.buffer) {
-                audioBase64 = file.buffer.toString('base64');
-                audioMimeType = file.mimetype;
-                audioDriveLink = 'https://mock-google-drive.com/audio/' + file.originalname;
+                    const fileName = `${assessment.id}-${Date.now()}.webm`;
+                    audioFilePath = path.join(uploadDir, fileName);
+                    fs.writeFileSync(audioFilePath, file.buffer);
+                    audioDriveLink = 'https://mock-google-drive.com/audio/' + file.originalname;
+                }
+
+                await this.prisma.assessment.update({
+                    where: { id: assessment.id },
+                    data: {
+                        mcqScore,
+                        audioDriveLink,
+                        status: 'AUDIO_PROCESSING',
+                        completedAt: new Date(),
+                    },
+                });
+
+                // Update candidate status too so Admin Dashboard filters work
+                await this.prisma.candidate.update({
+                    where: { id: assessment.candidateId },
+                    data: { status: 'AUDIO_PROCESSING' }
+                });
+
+                await this.audioQueue.add('process-audio', {
+                    assessmentId: assessment.id,
+                    audioFilePath, // Pass path instead of base64
+                    audioMimeType: file?.mimetype,
+                });
+
+                // trigger AI scoring for Motivation and CV now that MCQ passed
+                await this.aiQueue.add('process-application-ai', { candidateId: assessment.candidateId });
+            } catch (queueError) {
+                console.error('CRITICAL ERROR IN ASSESSMENT SUBMISSION:', queueError);
+                // We DON'T re-throw here because we want to return the result, 
+                // but this will help us see the error in logs next time.
+                throw queueError; // Actually, let's throw so the user gets the error but we see it.
             }
-
-            await this.prisma.assessment.update({
-                where: { id: assessment.id },
-                data: {
-                    mcqScore,
-                    audioDriveLink,
-                    status: 'AUDIO_PROCESSING',
-                    completedAt: new Date(),
-                },
-            });
-
-            await this.audioQueue.add('process-audio', {
-                assessmentId: assessment.id,
-                audioBase64,
-                audioMimeType,
-            });
-
-            // trigger AI scoring for Motivation and CV now that MCQ passed
-            await this.aiQueue.add('process-application-ai', { candidateId: assessment.candidateId });
 
         } else {
             // MCQ Failed

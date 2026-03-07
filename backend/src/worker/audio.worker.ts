@@ -42,16 +42,25 @@ export class AudioWorker extends WorkerHost {
             let rawScores: any = {};
             let transcript = '';
 
+            let wavBuffer: Buffer;
             const azureKey = process.env.AZURE_SPEECH_KEY;
             const azureRegion = process.env.AZURE_SPEECH_REGION;
 
-            if (azureKey && azureRegion && job.data.audioBase64) {
+            if (azureKey && azureRegion && (job.data.audioBase64 || job.data.audioFilePath)) {
                 this.logger.log(`Running Azure Pronunciation Assessment... (audio mime: ${job.data.audioMimeType})`);
 
                 try {
+                    let audioBuffer: Buffer;
+                    if (job.data.audioFilePath) {
+                        this.logger.log(`Reading audio from disk: ${job.data.audioFilePath}`);
+                        audioBuffer = fs.readFileSync(job.data.audioFilePath);
+                    } else {
+                        audioBuffer = Buffer.from(job.data.audioBase64, 'base64');
+                    }
+
                     // Convert WebM to WAV using ffmpeg for Azure compatibility
-                    const wavBuffer = await this.convertToWav(
-                        Buffer.from(job.data.audioBase64, 'base64'),
+                    wavBuffer = await this.convertToWav(
+                        audioBuffer,
                         job.data.audioMimeType || 'audio/webm'
                     );
 
@@ -110,6 +119,18 @@ export class AudioWorker extends WorkerHost {
             await this.notifications.sendFinalDecisionEmail(candidate.email, newStatus);
 
             this.logger.log(`Successfully processed audio for assessment ${job.data.assessmentId}, Final Score: ${finalScore.toFixed(1)}, Status: ${newStatus}`);
+
+            // CLEANUP: Delete the file from disk if it exists
+            if (job.data.audioFilePath) {
+                try {
+                    if (fs.existsSync(job.data.audioFilePath)) {
+                        fs.unlinkSync(job.data.audioFilePath);
+                        this.logger.log(`Cleaned up audio file: ${job.data.audioFilePath}`);
+                    }
+                } catch (cleanupErr) {
+                    this.logger.error('Failed to cleanup audio file', cleanupErr);
+                }
+            }
         } catch (err) {
             this.logger.error(`Error processing job ${job.id}`, err);
 
