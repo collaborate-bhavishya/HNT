@@ -95,6 +95,7 @@ export class ApplicationsService {
             },
         });
 
+        let assessmentToken: string | null = null;
         if (status === 'TESTING') {
             const assessment = await this.prisma.assessment.create({
                 data: {
@@ -104,8 +105,9 @@ export class ApplicationsService {
                     status: 'PENDING'
                 }
             });
+            assessmentToken = assessment.token;
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-            const link = `${frontendUrl}/assessment/${assessment.token}`;
+            const link = `${frontendUrl}/assessment/${assessmentToken}`;
             await this.notifications.sendAssessmentLinkEmail(candidate.email, link);
         } else if (status === 'REJECTED_FORM') {
             await this.notifications.sendFormRejectionEmail(candidate.email);
@@ -115,6 +117,7 @@ export class ApplicationsService {
             message: 'Application submitted successfully',
             candidateId: candidate.id,
             status: candidate.status,
+            assessmentToken
         };
     }
 

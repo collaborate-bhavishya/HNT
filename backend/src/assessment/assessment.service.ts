@@ -67,18 +67,18 @@ export class AssessmentService {
         }
 
         // Fetch questions from Question model based on topic
-        const lowQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'low' } });
+        const easyQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'easy' } });
         const mediumQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'medium' } });
-        const highQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'high' } });
+        const hardQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'hard' } });
 
         // Shuffle helper
         const shuffle = (array: any[]) => array.sort(() => 0.5 - Math.random());
 
-        // We want 20 questions: 8 low (40%), 6 medium (30%), 6 high (30%)
+        // We want 20 questions: 8 easy (40%), 6 medium (30%), 6 hard (30%)
         let selectedQuestions = [
-            ...shuffle(lowQuestions).slice(0, 8),
+            ...shuffle(easyQuestions).slice(0, 8),
             ...shuffle(mediumQuestions).slice(0, 6),
-            ...shuffle(highQuestions).slice(0, 6),
+            ...shuffle(hardQuestions).slice(0, 6),
         ];
 
         // If the DB doesn't have 20 questions yet, we pad with whatever is available

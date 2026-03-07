@@ -16,9 +16,13 @@ export class QuestionService {
         for (const line of dataLines) {
             if (!line.trim()) continue;
 
-            const [category, questionText, optionsStr, correctAnswer, difficulty] = this.parseCsvLine(line);
+            const [category, questionText, optionsStr, correctAnswer, difficultyRaw] = this.parseCsvLine(line);
 
             if (!category || !questionText) continue;
+
+            let difficulty = (difficultyRaw || 'medium').trim().toLowerCase();
+            if (difficulty === 'low') difficulty = 'easy';
+            if (difficulty === 'high') difficulty = 'hard';
 
             const options = (optionsStr || "").split('|').map(o => o.trim());
 
@@ -28,7 +32,7 @@ export class QuestionService {
                     questionText: questionText.trim(),
                     options: options,
                     correctAnswer: (correctAnswer || "").trim(),
-                    difficulty: (difficulty || "medium").trim().toLowerCase(),
+                    difficulty,
                 }
             });
             imported.push(question);

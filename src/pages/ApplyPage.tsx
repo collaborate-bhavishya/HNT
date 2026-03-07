@@ -206,14 +206,16 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
                             <CheckCircle2 className="w-12 h-12 text-green-600" />
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <CardTitle className="text-2xl font-bold text-gray-900">Application Submitted!</CardTitle>
-                        <CardDescription className="text-base text-gray-600">
-                            Thank you for your interest. We have received your profile and are currently processing it.
-                        </CardDescription>
-                    </div>
+                    {!(countdown === 0 && !assessmentToken) && (
+                        <div className="space-y-2">
+                            <CardTitle className="text-2xl font-bold text-gray-900">Application Submitted!</CardTitle>
+                            <CardDescription className="text-base text-gray-600">
+                                Thank you for your interest. We have received your profile and are currently processing it.
+                            </CardDescription>
+                        </div>
+                    )}
 
-                    <div className="py-4 border-y border-gray-100">
+                    <div className={countdown === 0 && !assessmentToken ? "pt-4" : "py-4 border-y border-gray-100"}>
                         {countdown > 0 ? (
                             <p className="text-sm font-medium text-gray-500">
                                 Finalizing your status in <span className="text-primary-600 font-bold text-lg">{countdown}</span> seconds...
@@ -230,8 +232,8 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
                                 </div>
                             </div>
                         ) : (
-                            <div className="space-y-4 animate-in fade-in duration-700">
-                                <p className="text-gray-700 font-medium">Thank you for applying. We are currently reviewing your profile.</p>
+                            <div className="space-y-3 animate-in fade-in duration-700">
+                                <p className="text-gray-900 text-lg font-medium">Thank you for applying. We are currently reviewing your profile.</p>
                                 <p className="text-sm text-gray-500">Please check your email for further updates. Sometimes our emails may land in the SPAM folder, so kindly check your SPAM as well.</p>
                             </div>
                         )}

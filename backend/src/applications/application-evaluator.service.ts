@@ -19,11 +19,6 @@ export class ApplicationEvaluatorService {
     }): EvaluationResult {
         // === INSTANT REJECTION RULES ===
 
-        // Rule 1: Minimum 1 year experience (basic teaching maturity)
-        if (data.experience < 1) {
-            return { passed: false, score: 0, rejectionReason: 'Minimum 1 year experience required' };
-        }
-
         // Rule 2: Must be available for 120 hours/month (operational requirement)
         if (data.available120Hours === false) {
             return { passed: false, score: 0, rejectionReason: 'Must be available for 120 hours/month' };
