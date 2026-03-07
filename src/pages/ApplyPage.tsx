@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -74,6 +75,8 @@ const steps = [
 export default function ApplyPage() {
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [assessmentToken, setAssessmentToken] = useState<string | null>(null);
+    const [countdown, setCountdown] = useState(5);
 
     const {
         register,
@@ -178,6 +181,7 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
                 return;
             }
 
+            setAssessmentToken(result.assessmentToken);
             setIsSubmitted(true);
         } catch (error) {
             console.error(error);
@@ -185,21 +189,53 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
         }
     };
 
+    useEffect(() => {
+        let timer: any;
+        if (isSubmitted && countdown > 0) {
+            timer = setTimeout(() => setCountdown(prev => prev - 1), 1000);
+        }
+        return () => clearTimeout(timer);
+    }, [isSubmitted, countdown]);
+
     if (isSubmitted) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-                <Card className="w-full max-w-md text-center p-8 space-y-6">
+                <Card className="w-full max-w-md text-center p-8 space-y-6 animate-in fade-in zoom-in duration-500">
                     <div className="flex justify-center">
-                        <CheckCircle2 className="w-16 h-16 text-primary-500" />
+                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+                            <CheckCircle2 className="w-12 h-12 text-green-600" />
+                        </div>
                     </div>
-                    <CardTitle className="text-2xl">Application Submitted!</CardTitle>
-                    <CardDescription className="text-base text-gray-600">
-                        Thank you for applying. We are currently evaluating your profile using our AI models.
-                    </CardDescription>
+                    <div className="space-y-2">
+                        <CardTitle className="text-2xl font-bold text-gray-900">Application Submitted!</CardTitle>
+                        <CardDescription className="text-base text-gray-600">
+                            Thank you for your interest. We have received your profile and are currently processing it.
+                        </CardDescription>
+                    </div>
 
-                    <Button onClick={() => window.location.reload()} variant="outline" className="w-full">
-                        Submit Another Application
-                    </Button>
+                    <div className="py-4 border-y border-gray-100">
+                        {countdown > 0 ? (
+                            <p className="text-sm font-medium text-gray-500">
+                                Finalizing your status in <span className="text-primary-600 font-bold text-lg">{countdown}</span> seconds...
+                            </p>
+                        ) : assessmentToken ? (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                <div className="bg-primary-50 p-4 rounded-xl border border-primary-100">
+                                    <p className="text-primary-800 font-semibold mb-3">Great news! You've been shortlisted for the next round.</p>
+                                    <Link to={`/assessment/${assessmentToken}`}>
+                                        <Button className="w-full bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-200">
+                                            Proceed to Technical Assessment
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4 animate-in fade-in duration-700">
+                                <p className="text-gray-700 font-medium">Thank you for applying. We are currently reviewing your profile.</p>
+                                <p className="text-sm text-gray-500">Please check your email for further updates. Sometimes our emails may land in the SPAM folder, so kindly check your SPAM as well.</p>
+                            </div>
+                        )}
+                    </div>
                 </Card>
             </div>
         );
