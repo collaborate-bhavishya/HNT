@@ -61,6 +61,14 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 export default function AdminDashboard() {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [adminPasswordInput, setAdminPasswordInput] = useState('');
+    const [adminPasswordError, setAdminPasswordError] = useState('');
+
+    const [isQuestionBankAuthenticated, setIsQuestionBankAuthenticated] = useState(false);
+    const [qbPasswordInput, setQbPasswordInput] = useState('');
+    const [qbPasswordError, setQbPasswordError] = useState('');
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
     const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -181,8 +189,60 @@ export default function AdminDashboard() {
     const isRejected = (status: string) => ['REJECTED', 'REJECTED_FORM', 'REJECTED_FINAL'].includes(status);
     const isSuccess = (status: string) => ['SELECTED'].includes(status);
 
+    const handleAdminLogin = () => {
+        if (adminPasswordInput === 'admin@brightchamps') {
+            setIsAuthenticated(true);
+            setAdminPasswordError('');
+        } else {
+            setAdminPasswordError('Incorrect password');
+        }
+    };
+
+    const handleQbLogin = () => {
+        if (qbPasswordInput === 'admin@questionbank') {
+            setIsQuestionBankAuthenticated(true);
+            setQbPasswordError('');
+        } else {
+            setQbPasswordError('Incorrect password');
+        }
+    };
+
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+                <Card className="w-full max-w-md p-8 space-y-8 shadow-2xl border-0 animate-in fade-in zoom-in duration-500">
+                    <div className="text-center space-y-3">
+                        <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-2 relative overflow-hidden">
+                            <User className="w-8 h-8 text-primary-600" />
+                        </div>
+                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Admin Portal</h1>
+                        <p className="text-gray-500 font-medium">Please enter your credentials</p>
+                    </div>
+                    <div className="space-y-5">
+                        <div className="space-y-2">
+                            <Input
+                                type="password"
+                                placeholder="Admin Password"
+                                value={adminPasswordInput}
+                                onChange={e => setAdminPasswordInput(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') handleAdminLogin();
+                                }}
+                                className="h-12 bg-gray-50/50"
+                            />
+                            {adminPasswordError && <p className="text-red-500 text-sm font-medium pl-1">{adminPasswordError}</p>}
+                        </div>
+                        <Button className="w-full h-12 text-lg bg-primary-600 hover:bg-primary-700 shadow-md transition-all" onClick={handleAdminLogin}>
+                            Sign In
+                        </Button>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-gray-50 flex animate-in fade-in duration-500">
             {/* Sidebar */}
             <div className="w-64 bg-white border-r hidden md:flex flex-col">
                 <div className="p-6 border-b">
@@ -350,8 +410,32 @@ export default function AdminDashboard() {
                                 </div>
                             )}
                         </Card>
+                    ) : !isQuestionBankAuthenticated ? (
+                        <Card className="flex-1 flex flex-col items-center justify-center bg-white p-8">
+                            <div className="max-w-md w-full space-y-6 text-center animate-in fade-in zoom-in duration-300">
+                                <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 border-[6px] border-amber-50">
+                                    <Database className="w-10 h-10 text-amber-600" />
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-900">Question Bank Vault</h2>
+                                <p className="text-gray-500 text-sm leading-relaxed">This area contains sensitive assessment material and requires secondary authentication.</p>
+                                <div className="space-y-4 mt-8 pt-6 border-t">
+                                    <Input
+                                        type="password"
+                                        placeholder="Question Bank Password"
+                                        value={qbPasswordInput}
+                                        onChange={e => setQbPasswordInput(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter') handleQbLogin();
+                                        }}
+                                        className="h-12 text-center bg-gray-50/50"
+                                    />
+                                    {qbPasswordError && <p className="text-red-500 text-sm font-medium">{qbPasswordError}</p>}
+                                    <Button className="w-full h-12 text-lg bg-amber-600 hover:bg-amber-700 text-white shadow-md transition-all" onClick={handleQbLogin}>Unlock Access</Button>
+                                </div>
+                            </div>
+                        </Card>
                     ) : (
-                        <div className="flex-1 flex flex-col gap-6">
+                        <div className="flex-1 flex flex-col gap-6 animate-in fade-in duration-300">
                             <Card className="bg-white p-8 space-y-8">
                                 <div className="max-w-xl space-y-4">
                                     <h3 className="text-xl font-bold text-gray-900">Import MCQ Question Bank</h3>
