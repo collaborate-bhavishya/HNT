@@ -52,7 +52,7 @@ export class AssessmentService {
             status: assessment.status,
             topic: (assessment as any).topic,
             questions, // might be empty if not started yet
-            duration: 30 * 60, // 30 minutes in seconds
+            duration: 20 * 60, // 20 minutes in seconds
         };
     }
 
@@ -123,7 +123,7 @@ export class AssessmentService {
         return {
             message: 'Assessment started',
             questions: clientQuestions,
-            duration: 30 * 60,
+            duration: 20 * 60,
         };
     }
 

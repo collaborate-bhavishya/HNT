@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
 import { AlertCircle, Clock, Mic, Square, Play, Pause, CheckCircle2, Volume2, BookOpen, Headphones } from 'lucide-react';
 
-const EXAM_DURATION_SECONDS = 30 * 60; // 30 minutes
+const EXAM_DURATION_SECONDS = 20 * 60; // 20 minutes
 
 export default function AssessmentPage() {
   const { token } = useParams();
@@ -340,7 +340,7 @@ export default function AssessmentPage() {
               <ul className="grid sm:grid-cols-2 gap-3 text-sm text-orange-900/80">
                 <li className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-                  30 Minutes Total Duration
+                  20 Minutes Total Duration
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />

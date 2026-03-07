@@ -351,8 +351,6 @@ export default function AdminDashboard() {
                                                 <th className="px-6 py-4">Candidate</th>
                                                 <th className="px-6 py-4">Position</th>
                                                 <th className="px-6 py-4">Experience</th>
-                                                <th className="px-6 py-4">App Score</th>
-                                                <th className="px-6 py-4">Final Score</th>
                                                 <th className="px-6 py-4">Status</th>
                                                 <th className="px-6 py-4">Applied</th>
                                             </tr>
@@ -375,20 +373,6 @@ export default function AdminDashboard() {
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-700">{candidate.position}</td>
                                                         <td className="px-6 py-4 text-gray-700">{candidate.experience}y</td>
-                                                        <td className="px-6 py-4">
-                                                            {candidate.applicationScore != null ? (
-                                                                <span className={cn("font-medium", candidate.applicationScore >= 6 ? "text-green-600" : "text-red-600")}>
-                                                                    {candidate.applicationScore.toFixed(1)}
-                                                                </span>
-                                                            ) : <span className="text-gray-400">—</span>}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            {candidate.finalScore != null ? (
-                                                                <span className={cn("font-bold", candidate.finalScore >= 75 ? "text-green-600" : candidate.finalScore >= 60 ? "text-yellow-600" : "text-red-600")}>
-                                                                    {candidate.finalScore.toFixed(1)}
-                                                                </span>
-                                                            ) : <span className="text-gray-400">—</span>}
-                                                        </td>
                                                         <td className="px-6 py-4">
                                                             <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", sc.color)}>
                                                                 {sc.label}
@@ -551,12 +535,8 @@ export default function AdminDashboard() {
                                             <div className="text-gray-500 text-xs">Location</div>
                                             <div className="font-medium">{selectedCandidate.currentLocation || '—'}</div>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded-lg">
-                                            <div className="text-gray-500 text-xs">Salary Exp.</div>
-                                            <div className="font-medium">{selectedCandidate.expectedSalary != null ? `₹${selectedCandidate.expectedSalary.toLocaleString()}` : '—'}</div>
-                                        </div>
-                                        <div className="bg-gray-50 p-3 rounded-lg">
-                                            <div className="text-gray-500 text-xs">Layer 1 Score</div>
+                                        <div className="bg-gray-50 p-3 rounded-lg flex flex-col justify-center">
+                                            <div className="text-gray-500 text-xs">Stage 1 Score</div>
                                             <div className="font-medium">{selectedCandidate.layer1Score ?? '—'}</div>
                                         </div>
                                     </div>
@@ -573,28 +553,16 @@ export default function AdminDashboard() {
                                                 <div className="text-gray-900 truncate max-w-[200px]">{selectedCandidate.cvDriveLink.split('/').pop()}</div>
                                             </div>
                                             <a href={selectedCandidate.cvDriveLink} target="_blank" rel="noreferrer" className="text-primary-600 hover:text-primary-700 text-xs font-semibold">
-                                                Mock View
+                                                Open CV
                                             </a>
-                                        </div>
-                                    )}
-                                    {selectedCandidate.cvText && (
-                                        <div className="bg-gray-50 border p-3 rounded-lg text-sm">
-                                            <div className="text-gray-500 text-xs font-medium mb-1">Extracted CV Text (Preview)</div>
-                                            <div className="text-gray-600 text-xs max-h-32 overflow-y-auto whitespace-pre-wrap">{selectedCandidate.cvText.substring(0, 500)}...</div>
-                                        </div>
-                                    )}
-                                    {selectedCandidate.rejectionReason && (
-                                        <div className="bg-red-50 border border-red-100 p-3 rounded-lg text-sm">
-                                            <div className="text-red-600 text-xs font-medium mb-1">Rejection Reason</div>
-                                            <div className="text-red-900">{selectedCandidate.rejectionReason}</div>
                                         </div>
                                     )}
                                 </div>
 
                                 {/* AI Scores */}
                                 <div className="space-y-3">
-                                    <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">AI Evaluation</h4>
-                                    <div className="grid grid-cols-3 gap-3">
+                                    <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Stage 2 Scores</h4>
+                                    <div className="grid grid-cols-2 gap-3">
                                         <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
                                             <div className="text-2xl font-bold text-gray-900">{selectedCandidate.aiMotivationScore ?? '—'}</div>
                                             <div className="text-xs text-gray-500 mt-1">Motivation</div>
@@ -602,12 +570,6 @@ export default function AdminDashboard() {
                                         <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
                                             <div className="text-2xl font-bold text-gray-900">{selectedCandidate.aiCvScore ?? '—'}</div>
                                             <div className="text-xs text-gray-500 mt-1">CV Score</div>
-                                        </div>
-                                        <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
-                                            <div className={cn("text-2xl font-bold", (selectedCandidate.applicationScore || 0) >= 6 ? "text-green-600" : "text-gray-900")}>
-                                                {selectedCandidate.applicationScore?.toFixed(1) ?? '—'}
-                                            </div>
-                                            <div className="text-xs text-gray-500 mt-1">App Score</div>
                                         </div>
                                     </div>
                                 </div>
@@ -618,7 +580,7 @@ export default function AdminDashboard() {
                                         <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Assessment Results</h4>
                                         {selectedCandidate.assessments.map((a: Assessment) => (
                                             <div key={a.id} className="space-y-3">
-                                                <div className="grid grid-cols-3 gap-3">
+                                                <div className="grid grid-cols-2 gap-3">
                                                     <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
                                                         <div className="text-2xl font-bold text-gray-900">{a.mcqScore ?? '—'}%</div>
                                                         <div className="text-xs text-gray-500 mt-1">MCQ Score</div>
@@ -629,12 +591,6 @@ export default function AdminDashboard() {
                                                         </div>
                                                         <div className="text-xs text-gray-500 mt-1">Audio Score</div>
                                                     </div>
-                                                    <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
-                                                        <div className={cn("text-2xl font-bold", (a.finalScore || 0) >= 75 ? "text-green-600" : (a.finalScore || 0) >= 60 ? "text-yellow-600" : "text-red-600")}>
-                                                            {a.finalScore?.toFixed(1) ?? '—'}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500 mt-1">Final Score</div>
-                                                    </div>
                                                 </div>
 
                                                 {/* Audio Playback Link */}
@@ -642,7 +598,7 @@ export default function AdminDashboard() {
                                                     <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg flex items-center justify-between">
                                                         <span className="text-purple-700 text-xs font-semibold">Audio Recording</span>
                                                         <a href={a.audioDriveLink} target="_blank" rel="noreferrer" className="text-purple-600 hover:text-purple-800 text-xs font-medium bg-white px-3 py-1 rounded-full shadow-sm border border-purple-200">
-                                                            Mock Listen
+                                                            Listen
                                                         </a>
                                                     </div>
                                                 )}
@@ -678,25 +634,7 @@ export default function AdminDashboard() {
                                     </div>
                                 )}
 
-                                {/* Final Score Banner */}
-                                {selectedCandidate.finalScore != null && (
-                                    <div className={cn(
-                                        "border rounded-xl p-4 text-center",
-                                        selectedCandidate.finalScore >= 75 ? "bg-green-50 border-green-200" :
-                                            selectedCandidate.finalScore >= 60 ? "bg-yellow-50 border-yellow-200" :
-                                                "bg-red-50 border-red-200"
-                                    )}>
-                                        <div className={cn(
-                                            "text-3xl font-bold",
-                                            selectedCandidate.finalScore >= 75 ? "text-green-700" :
-                                                selectedCandidate.finalScore >= 60 ? "text-yellow-700" :
-                                                    "text-red-700"
-                                        )}>
-                                            {selectedCandidate.finalScore.toFixed(1)}
-                                        </div>
-                                        <div className="text-sm text-gray-600 mt-1">Final Composite Score</div>
-                                    </div>
-                                )}
+                                {/* Final Score Banner Removed */}
 
                                 {/* Admin Actions */}
                                 {selectedCandidate.status === 'MANUAL_REVIEW' && (
