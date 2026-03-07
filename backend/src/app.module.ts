@@ -17,6 +17,15 @@ import { QuestionsModule } from './questions/questions.module';
       connection: new Redis((process.env.REDIS_URL || 'redis://localhost:6379').replace(/["']/g, ''), {
         maxRetriesPerRequest: null,
       }) as any,
+      defaultJobOptions: {
+        removeOnComplete: true,
+        removeOnFail: 100,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 30000,
+        },
+      },
     }),
     ApplicationsModule,
     AssessmentModule,

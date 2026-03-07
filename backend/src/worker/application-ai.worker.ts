@@ -7,6 +7,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @Processor('application-ai-queue', {
     concurrency: 1,
+    maxStalledCount: 1,
+    stalledInterval: 300000,
 })
 export class ApplicationAiWorker extends WorkerHost {
     private readonly logger = new Logger(ApplicationAiWorker.name);

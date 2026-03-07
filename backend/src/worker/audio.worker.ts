@@ -11,6 +11,8 @@ const sdk = require('microsoft-cognitiveservices-speech-sdk');
 
 @Processor('audio-processing-queue', {
     concurrency: 1,
+    maxStalledCount: 1,
+    stalledInterval: 300000,
 })
 export class AudioWorker extends WorkerHost {
     private readonly logger = new Logger(AudioWorker.name);
