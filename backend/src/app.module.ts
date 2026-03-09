@@ -8,7 +8,6 @@ import { PrismaService } from './prisma.service';
 import { BullModule } from '@nestjs/bullmq';
 import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { WorkerModule } from './worker/worker.module';
 import { QuestionsModule } from './questions/questions.module';
 
 @Module({
@@ -31,7 +30,6 @@ import { QuestionsModule } from './questions/questions.module';
     AssessmentModule,
     AdminModule,
     NotificationsModule,
-    WorkerModule,
     QuestionsModule,
   ],
   controllers: [AppController],

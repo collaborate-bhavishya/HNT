@@ -36,7 +36,7 @@ export class ApplicationAiWorker extends WorkerHost {
 
         try {
             let aiMotivationScore = 5;
-            let aiCvScore = 5; // Default if no CV or API fails
+            let aiCvScore = null; // Removed CV AI scoring
 
             // In a real environment with real key:
             if (process.env.GEMINI_API_KEY) {
@@ -51,37 +51,13 @@ export class ApplicationAiWorker extends WorkerHost {
                     const mResult = await model.generateContent(motivationPrompt);
                     const mParsed = parseFloat(mResult.response.text().trim());
                     if (!isNaN(mParsed)) aiMotivationScore = mParsed;
-
-                    // Score CV if available
-                    // @ts-ignore - Ignoring type error because Prisma schema update might be delayed in IDE
-                    if (candidate.cvText) {
-                        // @ts-ignore
-                        const cvPrompt = `You are an HR evaluator for an EdTech company hiring teachers.
-Review the following candidate CV text and rate it from 1 to 10 based on:
-- Relevant teaching or tutoring experience
-- Educational background (Score higher for candidates from top Indian cities and good colleges)
-- Clear presentation of skills
-- Look for clues regarding their teaching abilities, student engagement, and communication skills - if found, score them higher than others.
-
-CV Text:
-${candidate.cvText.substring(0, 10000)}
-
-Reply with ONLY a single number between 1 and 10. No other text or explanation.`;
-
-                        const cvResult = await model.generateContent(cvPrompt);
-                        const cvParsed = parseFloat(cvResult.response.text().trim());
-                        if (!isNaN(cvParsed)) aiCvScore = cvParsed;
-                    } else {
-                        // Keep dummy or 5 if no CV uploaded
-                        aiCvScore = 5;
-                    }
                 } catch (e) {
                     this.logger.error("Gemini api failed", e);
                     throw e; // for retry mechanism
                 }
             }
 
-            const applicationScore = (aiMotivationScore + aiCvScore) / 2;
+            const applicationScore = aiMotivationScore;
 
             await this.prisma.candidate.update({
                 where: { id: candidate.id },

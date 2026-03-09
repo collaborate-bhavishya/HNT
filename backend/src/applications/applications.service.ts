@@ -5,16 +5,30 @@ import { PrismaService } from '../prisma.service';
 import { ApplicationEvaluatorService } from './application-evaluator.service';
 import { CreateApplicationDto } from './create-application.dto';
 import { NotificationsService } from '../notifications/notifications.service';
-const pdfParse = require('pdf-parse');
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ApplicationsService {
+    private s3Client: S3Client | null = null;
+
     constructor(
         private prisma: PrismaService,
         private evaluatorService: ApplicationEvaluatorService,
         private notifications: NotificationsService,
         @InjectQueue('application-ai-queue') private aiQueue: Queue,
-    ) { }
+    ) {
+        if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION) {
+            this.s3Client = new S3Client({
+                region: process.env.AWS_REGION,
+                credentials: {
+                    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                }
+            });
+        }
+    }
 
     async submitApplication(dto: CreateApplicationDto, file?: Express.Multer.File) {
         if (file && file.mimetype !== 'application/pdf') {
@@ -55,17 +69,47 @@ export class ApplicationsService {
             motivation: dto.motivation,
         });
 
-        // Mock Google Drive Upload
-        const cvDriveLink = file ? 'https://mock-google-drive.com/file/' + file.filename : null;
-
+        // File Storage for CV (Primary: S3, Fallback: Local)
+        let cvDriveLink: string | null = null;
         let cvText: string | null = null;
+
         if (file && file.buffer) {
-            try {
-                const pdfData = await pdfParse(file.buffer);
-                cvText = pdfData.text;
-                if (cvText && cvText.length > 20000) cvText = cvText.substring(0, 20000);
-            } catch (err) {
-                console.error('Error parsing PDF:', err);
+            const fileName = `cv-${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+
+            if (this.s3Client && process.env.AWS_S3_BUCKET_NAME) {
+                // Upload to AWS S3
+                try {
+                    const command = new PutObjectCommand({
+                        Bucket: process.env.AWS_S3_BUCKET_NAME,
+                        Key: `cvs/${fileName}`,
+                        Body: file.buffer,
+                        ContentType: file.mimetype,
+                        // ACL: 'public-read' // Uncomment if you want objects publicly readable by default, but it's often better to configure the bucket policy instead
+                    });
+
+                    await this.s3Client.send(command);
+
+                    // Construct public S3 URL
+                    cvDriveLink = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/cvs/${fileName}`;
+                } catch (err) {
+                    console.error('Error uploading PDF to S3:', err);
+                }
+            } else {
+                // Fallback to local storage (e.g. for local dev without AWS keys)
+                try {
+                    const uploadDir = path.join(process.cwd(), 'uploads', 'cvs');
+                    if (!fs.existsSync(uploadDir)) {
+                        fs.mkdirSync(uploadDir, { recursive: true });
+                    }
+
+                    const filePath = path.join(uploadDir, fileName);
+                    fs.writeFileSync(filePath, file.buffer);
+
+                    const serverUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+                    cvDriveLink = `${serverUrl}/uploads/cvs/${fileName}`;
+                } catch (err) {
+                    console.error('Error saving PDF locally:', err);
+                }
             }
         }
 

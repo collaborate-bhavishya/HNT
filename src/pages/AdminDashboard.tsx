@@ -562,14 +562,10 @@ export default function AdminDashboard() {
                                 {/* AI Scores */}
                                 <div className="space-y-3">
                                     <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Stage 2 Scores</h4>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 gap-3">
                                         <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
                                             <div className="text-2xl font-bold text-gray-900">{selectedCandidate.aiMotivationScore ?? '—'}</div>
                                             <div className="text-xs text-gray-500 mt-1">Motivation</div>
-                                        </div>
-                                        <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
-                                            <div className="text-2xl font-bold text-gray-900">{selectedCandidate.aiCvScore ?? '—'}</div>
-                                            <div className="text-xs text-gray-500 mt-1">CV Score</div>
                                         </div>
                                     </div>
                                 </div>
@@ -593,13 +589,13 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </div>
 
-                                                {/* Audio Playback Link */}
+                                                {/* Audio Playback Center */}
                                                 {a.audioDriveLink && (
-                                                    <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg flex items-center justify-between">
-                                                        <span className="text-purple-700 text-xs font-semibold">Audio Recording</span>
-                                                        <a href={a.audioDriveLink} target="_blank" rel="noreferrer" className="text-purple-600 hover:text-purple-800 text-xs font-medium bg-white px-3 py-1 rounded-full shadow-sm border border-purple-200">
-                                                            Listen
-                                                        </a>
+                                                    <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg flex flex-col items-center justify-between gap-2">
+                                                        <span className="text-purple-700 text-xs font-semibold w-full text-left">Audio Recording</span>
+                                                        <audio controls className="w-full h-8" src={a.audioDriveLink}>
+                                                            Your browser does not support the audio element.
+                                                        </audio>
                                                     </div>
                                                 )}
 

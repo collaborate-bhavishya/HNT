@@ -1,18 +1,33 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma.service';
-
 import { NotificationsService } from '../notifications/notifications.service';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class AssessmentService {
+    private readonly logger = new Logger('AssessmentService');
+    private s3Client: S3Client | null = null;
+
     constructor(
         private readonly prisma: PrismaService,
         @InjectQueue('audio-processing-queue') private audioQueue: Queue,
         @InjectQueue('application-ai-queue') private aiQueue: Queue,
         private notifications: NotificationsService
-    ) { }
+    ) {
+        if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION) {
+            this.s3Client = new S3Client({
+                region: process.env.AWS_REGION,
+                credentials: {
+                    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                }
+            });
+        }
+    }
 
     async verifyToken(token: string) {
         const assessment = await this.prisma.assessment.findUnique({
@@ -137,7 +152,7 @@ export class AssessmentService {
             throw new BadRequestException('Already submitted');
         }
 
-        if (file && !file.mimetype.startsWith('audio/')) {
+        if (file && !file.mimetype.startsWith('audio/') && !file.mimetype.includes('octet-stream')) {
             throw new BadRequestException('Only audio files are allowed');
         }
 
@@ -152,108 +167,136 @@ export class AssessmentService {
         let mcqCorrect = 0;
         let mcqAnswers: any[] = [];
         try {
-            mcqAnswers = typeof payload.mcqAnswers === 'string' ? JSON.parse(payload.mcqAnswers) : (payload.mcqAnswers || []);
-        } catch { mcqAnswers = []; }
+            if (typeof payload.mcqAnswers === 'string') {
+                mcqAnswers = JSON.parse(payload.mcqAnswers);
+            } else if (Array.isArray(payload.mcqAnswers)) {
+                mcqAnswers = payload.mcqAnswers;
+            } else {
+                mcqAnswers = [];
+            }
+        } catch (e) {
+            this.logger.error('Failed to parse mcqAnswers', e);
+            mcqAnswers = [];
+        }
 
-        for (const answer of mcqAnswers) {
-            const correctAnswer = correctAnswers[answer.questionId];
+        if (Array.isArray(mcqAnswers)) {
+            for (const answer of mcqAnswers) {
+                const correctAnswer = correctAnswers[answer.questionId];
 
-            // Some legacy compatibility: if they were using 0-index based correctAnswer in UI
-            if (typeof correctAnswer === 'number') {
-                if (correctAnswer === answer.selectedOption) {
-                    mcqCorrect++;
-                }
-            } else if (typeof correctAnswer === 'string') {
-                // If options logic changed and they send back string or index, check accordingly:
-                // If they send the index of selected option, we need to compare to the index or string
-                // But typically options are strings. We will assume the UI sends the index in selectedOption
-                // We'll map the index back to option text or assume correctly.
-                const questionObj = storedQuestions.find(sq => sq.id === answer.questionId);
-                const options = questionObj?.options as string[];
-                if (options && options[answer.selectedOption] === correctAnswer) {
-                    mcqCorrect++;
+                // Some legacy compatibility: if they were using 0-index based correctAnswer in UI
+                if (typeof correctAnswer === 'number') {
+                    if (correctAnswer === answer.selectedOption) {
+                        mcqCorrect++;
+                    }
+                } else if (typeof correctAnswer === 'string') {
+                    // If options logic changed and they send back string or index, check accordingly:
+                    // If they send the index of selected option, we need to compare to the index or string
+                    // But typically options are strings. We will assume the UI sends the index in selectedOption
+                    // We'll map the index back to option text or assume correctly.
+                    const questionObj = storedQuestions.find(sq => sq.id === answer.questionId);
+                    const options = questionObj?.options as string[];
+                    if (options && options[answer.selectedOption] === correctAnswer) {
+                        mcqCorrect++;
+                    }
                 }
             }
-        }
 
-        let mcqScore = 0;
-        if (storedQuestions.length > 0) {
-            mcqScore = Math.round((mcqCorrect / storedQuestions.length) * 100);
-        }
+            let mcqScore = 0;
+            if (storedQuestions.length > 0) {
+                mcqScore = Math.round((mcqCorrect / storedQuestions.length) * 100);
+            }
 
-        if (mcqScore >= 60) {
-            let audioDriveLink: string | null = null;
-            try {
-                let audioFilePath: string | null = null;
-                if (file && file.buffer) {
-                    const fs = require('fs');
-                    const path = require('path');
-                    const uploadDir = path.join(process.cwd(), 'uploads');
-                    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+            if (mcqScore >= 60) {
+                let audioDriveLink: string | null = null;
+                try {
+                    let audioFilePath: string | null = null;
+                    if (file && file.buffer) {
+                        const fileName = `${assessment.id}-${Date.now()}.webm`;
 
-                    const fileName = `${assessment.id}-${Date.now()}.webm`;
-                    audioFilePath = path.join(uploadDir, fileName);
-                    fs.writeFileSync(audioFilePath, file.buffer);
-                    audioDriveLink = 'https://mock-google-drive.com/audio/' + file.originalname;
+                        if (this.s3Client && process.env.AWS_S3_BUCKET_NAME) {
+                            const command = new PutObjectCommand({
+                                Bucket: process.env.AWS_S3_BUCKET_NAME,
+                                Key: `audio/${fileName}`,
+                                Body: file.buffer,
+                                ContentType: file.mimetype,
+                            });
+
+                            await this.s3Client.send(command);
+                            audioDriveLink = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/audio/${fileName}`;
+                            this.logger.log(`Audio saved to S3: ${audioDriveLink}`);
+                        } else {
+                            const uploadDir = path.join(process.cwd(), 'uploads', 'audio');
+                            if (!fs.existsSync(uploadDir)) {
+                                fs.mkdirSync(uploadDir, { recursive: true });
+                            }
+
+                            audioFilePath = path.join(uploadDir, fileName);
+                            fs.writeFileSync(audioFilePath, file.buffer);
+
+                            const serverUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+                            audioDriveLink = `${serverUrl}/uploads/audio/${fileName}`;
+                            this.logger.log(`Audio saved to local disk: ${audioFilePath}`);
+                        }
+                    }
+
+                    await this.prisma.assessment.update({
+                        where: { id: assessment.id },
+                        data: {
+                            mcqScore,
+                            audioDriveLink,
+                            status: 'AUDIO_PROCESSING',
+                            completedAt: new Date(),
+                        },
+                    });
+
+                    // Update candidate status too so Admin Dashboard filters work
+                    await this.prisma.candidate.update({
+                        where: { id: assessment.candidateId },
+                        data: { status: 'AUDIO_PROCESSING' }
+                    });
+
+                    await this.audioQueue.add('process-audio', {
+                        assessmentId: assessment.id,
+                        audioFilePath, // Pass path instead of base64
+                        audioMimeType: file?.mimetype,
+                    });
+
+                    // trigger AI scoring for Motivation and CV now that MCQ passed
+                    await this.aiQueue.add('process-application-ai', { candidateId: assessment.candidateId });
+                } catch (queueError) {
+                    console.error('CRITICAL ERROR IN ASSESSMENT SUBMISSION:', queueError);
+                    // We DON'T re-throw here because we want to return the result, 
+                    // but this will help us see the error in logs next time.
+                    throw queueError; // Actually, let's throw so the user gets the error but we see it.
                 }
 
+            } else {
+                // MCQ Failed
                 await this.prisma.assessment.update({
                     where: { id: assessment.id },
                     data: {
                         mcqScore,
-                        audioDriveLink,
-                        status: 'AUDIO_PROCESSING',
+                        status: 'COMPLETED',
                         completedAt: new Date(),
                     },
                 });
 
-                // Update candidate status too so Admin Dashboard filters work
-                await this.prisma.candidate.update({
+                const updatedCandidate = await this.prisma.candidate.update({
                     where: { id: assessment.candidateId },
-                    data: { status: 'AUDIO_PROCESSING' }
+                    data: {
+                        status: 'REJECTED_FINAL',
+                        rejectionReason: 'MCQ Failed - Score below threshold (60%)'
+                    }
                 });
 
-                await this.audioQueue.add('process-audio', {
-                    assessmentId: assessment.id,
-                    audioFilePath, // Pass path instead of base64
-                    audioMimeType: file?.mimetype,
-                });
-
-                // trigger AI scoring for Motivation and CV now that MCQ passed
-                await this.aiQueue.add('process-application-ai', { candidateId: assessment.candidateId });
-            } catch (queueError) {
-                console.error('CRITICAL ERROR IN ASSESSMENT SUBMISSION:', queueError);
-                // We DON'T re-throw here because we want to return the result, 
-                // but this will help us see the error in logs next time.
-                throw queueError; // Actually, let's throw so the user gets the error but we see it.
+                // Send rejection email right away
+                await this.notifications.sendFormRejectionEmail(updatedCandidate.email);
             }
 
-        } else {
-            // MCQ Failed
-            await this.prisma.assessment.update({
-                where: { id: assessment.id },
-                data: {
-                    mcqScore,
-                    status: 'COMPLETED',
-                    completedAt: new Date(),
-                },
-            });
-
-            const updatedCandidate = await this.prisma.candidate.update({
-                where: { id: assessment.candidateId },
-                data: {
-                    status: 'REJECTED_FINAL',
-                    rejectionReason: 'MCQ Failed - Score below threshold (60%)'
-                }
-            });
-
-            // Send rejection email right away
-            await this.notifications.sendFormRejectionEmail(updatedCandidate.email);
+            return {
+                status: 'ASSESSMENT_COMPLETED',
+                message: 'Assessment submitted successfully'
+            };
         }
-
-        return {
-            status: 'ASSESSMENT_COMPLETED',
-            message: 'Assessment submitted successfully'
-        };
     }
 }
