@@ -26,10 +26,21 @@ interface Candidate {
     assessments?: Assessment[];
 }
 
+interface McqQuestion {
+    id: string;
+    questionText: string;
+    options: string[];
+    correctAnswer: string;
+    difficulty: string;
+    category: string;
+}
+
 interface Assessment {
     id: string;
     status: string;
+    topic: string | null;
     mcqScore: number | null;
+    mcqQuestions: McqQuestion[] | null;
     introAudioDriveLink: string | null;
     audioDriveLink: string | null;
     completedAt: string | null;
@@ -536,73 +547,137 @@ export default function AdminDashboard() {
                                             <Button
                                                 variant="outline"
                                                 className="w-full justify-center gap-2 border-primary-200 text-primary-700 hover:bg-primary-50 font-semibold"
-                                                onClick={() => window.open(selectedCandidate.cvDriveLink!, '_blank')}
+                                                onClick={() => {
+                                                    let cvUrl = selectedCandidate.cvDriveLink!;
+                                                    if (cvUrl.startsWith('http://localhost')) {
+                                                        cvUrl = cvUrl.replace(/^http:\/\/localhost:\d+/, API_BASE);
+                                                    }
+                                                    window.open(cvUrl, '_blank');
+                                                }}
                                             >
                                                 <FileUp className="w-4 h-4" />
-                                                Check CV
+                                                View CV
                                             </Button>
                                         </div>
                                     )}
                                 </div>
 
-
-                                {/* Assessment Scores */}
+                                {/* Assessment Results */}
                                 {selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (
-                                    <div className="space-y-3">
+                                    <div className="space-y-4">
                                         <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Assessment Results</h4>
                                         {selectedCandidate.assessments.map((a: Assessment) => (
                                             <div key={a.id} className="space-y-3">
-                                                <div className="grid grid-cols-1 gap-3">
+                                                <div className="grid grid-cols-2 gap-3">
                                                     <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
                                                         <div className="text-2xl font-bold text-gray-900">{a.mcqScore ?? '—'}%</div>
                                                         <div className="text-xs text-gray-500 mt-1">MCQ Score</div>
                                                     </div>
+                                                    {a.topic && (
+                                                        <div className="bg-white border text-center p-3 rounded-xl shadow-sm flex flex-col items-center justify-center">
+                                                            <div className="text-lg font-bold text-gray-900">{a.topic}</div>
+                                                            <div className="text-xs text-gray-500 mt-1">Topic</div>
+                                                        </div>
+                                                    )}
                                                 </div>
 
+                                                {/* Audio Recordings */}
                                                 {a.introAudioDriveLink && (
-                                                    <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-lg flex flex-col items-center justify-between gap-2">
-                                                        <span className="text-indigo-700 text-xs font-semibold w-full text-left">Intro: Tell Me About Yourself</span>
-                                                        <audio controls className="w-full h-8" src={a.introAudioDriveLink}>
+                                                    <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-lg flex flex-col gap-2">
+                                                        <span className="text-indigo-700 text-xs font-semibold">Intro: Tell Me About Yourself</span>
+                                                        <audio controls className="w-full h-8" src={a.introAudioDriveLink.startsWith('http://localhost') ? a.introAudioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.introAudioDriveLink}>
                                                             Your browser does not support the audio element.
                                                         </audio>
                                                     </div>
                                                 )}
                                                 {a.audioDriveLink && (
-                                                    <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg flex flex-col items-center justify-between gap-2">
-                                                        <span className="text-purple-700 text-xs font-semibold w-full text-left">Teaching Demo Recording</span>
-                                                        <audio controls className="w-full h-8" src={a.audioDriveLink}>
+                                                    <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg flex flex-col gap-2">
+                                                        <span className="text-purple-700 text-xs font-semibold">Teaching Demo Recording</span>
+                                                        <audio controls className="w-full h-8" src={a.audioDriveLink.startsWith('http://localhost') ? a.audioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.audioDriveLink}>
                                                             Your browser does not support the audio element.
                                                         </audio>
                                                     </div>
                                                 )}
 
+                                                {/* MCQ Questions & Answers */}
+                                                {a.mcqQuestions && a.mcqQuestions.length > 0 && (
+                                                    <details className="bg-gray-50 border rounded-lg">
+                                                        <summary className="px-3 py-2 text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 rounded-lg">
+                                                            View MCQ Questions ({a.mcqQuestions.length})
+                                                        </summary>
+                                                        <div className="px-3 pb-3 space-y-3 max-h-64 overflow-auto">
+                                                            {a.mcqQuestions.map((q: McqQuestion, qi: number) => (
+                                                                <div key={q.id} className="text-xs border-t pt-2">
+                                                                    <div className="flex gap-2">
+                                                                        <span className="text-gray-400 font-mono">{qi + 1}.</span>
+                                                                        <div>
+                                                                            <p className="font-medium text-gray-800 whitespace-pre-line">{q.questionText}</p>
+                                                                            <div className="mt-1 space-y-0.5">
+                                                                                {q.options.map((opt: string, oi: number) => (
+                                                                                    <div key={oi} className={cn(
+                                                                                        "px-2 py-0.5 rounded",
+                                                                                        opt === q.correctAnswer ? "bg-green-100 text-green-800 font-medium" : "text-gray-600"
+                                                                                    )}>
+                                                                                        {String.fromCharCode(65 + oi)}. {opt}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                            <span className={cn(
+                                                                                "inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
+                                                                                q.difficulty === 'easy' ? "bg-green-50 text-green-700" : q.difficulty === 'hard' ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"
+                                                                            )}>
+                                                                                {q.difficulty}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </details>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
                                 )}
 
-                                {/* Final Score Banner Removed */}
-
-                                {/* Admin Actions */}
-                                {selectedCandidate.status === 'MANUAL_REVIEW' && (
-                                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mt-6 space-y-3">
-                                        <h4 className="text-sm font-semibold text-yellow-800 uppercase tracking-wider">Manual Review Action Required</h4>
-                                        <p className="text-xs text-yellow-700">This candidate requires manual review to make a final decision.</p>
-                                        <div className="flex gap-3 pt-2">
+                                {/* Admin Actions – show for all non-final statuses */}
+                                {!['SELECTED', 'REJECTED_FINAL'].includes(selectedCandidate.status) && (
+                                    <div className={cn(
+                                        "border p-4 rounded-xl space-y-3",
+                                        selectedCandidate.status === 'MANUAL_REVIEW' ? "bg-yellow-50 border-yellow-200" : "bg-gray-50 border-gray-200"
+                                    )}>
+                                        <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wider">Admin Actions</h4>
+                                        <div className="flex gap-3">
                                             <Button
                                                 className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                                                 onClick={() => updateStatus(selectedCandidate.id, 'SELECTED')}
                                             >
-                                                Approve / Select
+                                                <CheckCircle2 className="w-4 h-4 mr-1" />
+                                                Select
                                             </Button>
                                             <Button
                                                 variant="outline"
                                                 className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2"
                                                 onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL')}
                                             >
-                                                Reject Candidate
+                                                <XCircle className="w-4 h-4 mr-1" />
+                                                Reject
                                             </Button>
                                         </div>
+                                    </div>
+                                )}
+
+                                {/* Final status badge */}
+                                {selectedCandidate.status === 'SELECTED' && (
+                                    <div className="bg-green-50 border border-green-200 p-4 rounded-xl text-center">
+                                        <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                                        <p className="text-green-800 font-bold">Candidate Selected</p>
+                                    </div>
+                                )}
+                                {selectedCandidate.status === 'REJECTED_FINAL' && (
+                                    <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center">
+                                        <XCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+                                        <p className="text-red-800 font-bold">Candidate Rejected</p>
                                     </div>
                                 )}
                             </CardContent>

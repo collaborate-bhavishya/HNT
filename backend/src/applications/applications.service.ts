@@ -182,7 +182,9 @@ export class ApplicationsService {
                     select: {
                         id: true,
                         status: true,
+                        topic: true,
                         mcqScore: true,
+                        mcqQuestions: true,
                         audioScore: true,
                         finalScore: true,
                         aiSpeechRawScores: true,
