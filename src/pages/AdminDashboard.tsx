@@ -536,12 +536,16 @@ export default function AdminDashboard() {
                                             <div className="font-medium">{selectedCandidate.currentLocation || '—'}</div>
                                         </div>
                                     </div>
-                                    {selectedCandidate.motivation && (
-                                        <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-sm">
-                                            <div className="text-blue-600 text-xs font-medium mb-1">Motivation</div>
-                                            <div className="text-blue-900 whitespace-pre-line">{selectedCandidate.motivation}</div>
-                                        </div>
-                                    )}
+                                    {selectedCandidate.motivation && (() => {
+                                        const whyLine = selectedCandidate.motivation.split('\n').find(l => l.startsWith('Why teach with us:'));
+                                        const answer = whyLine ? whyLine.replace('Why teach with us:', '').trim() : selectedCandidate.motivation;
+                                        return (
+                                            <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-sm">
+                                                <div className="text-blue-600 text-xs font-medium mb-1">Why teach with us?</div>
+                                                <div className="text-blue-900">{answer}</div>
+                                            </div>
+                                        );
+                                    })()}
                                     {selectedCandidate.cvDriveLink && (
                                         <div className="pt-2">
                                             <Button
