@@ -527,7 +527,7 @@ export default function AdminDashboard() {
                                     {selectedCandidate.motivation && (
                                         <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-sm">
                                             <div className="text-blue-600 text-xs font-medium mb-1">Motivation</div>
-                                            <div className="text-blue-900">{selectedCandidate.motivation}</div>
+                                            <div className="text-blue-900 whitespace-pre-line">{selectedCandidate.motivation}</div>
                                         </div>
                                     )}
                                     {selectedCandidate.cvDriveLink && (
