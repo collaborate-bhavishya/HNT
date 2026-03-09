@@ -10,12 +10,28 @@ import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { QuestionsModule } from './questions/questions.module';
 
+const redisUrl = (process.env.REDIS_URL || 'redis://localhost:6379').replace(/["']/g, '');
+console.log(`[AppModule] Connecting to Redis: ${redisUrl.replace(/\/\/.*@/, '//***@')}`);
+
+const redisConnection = new Redis(redisUrl, {
+  maxRetriesPerRequest: null,
+  connectTimeout: 10000,
+  retryStrategy(times) {
+    if (times > 5) {
+      console.error('[Redis] Max retries reached, giving up');
+      return null;
+    }
+    return Math.min(times * 500, 3000);
+  },
+});
+
+redisConnection.on('error', (err) => console.error('[Redis] Connection error:', err.message));
+redisConnection.on('connect', () => console.log('[Redis] Connected successfully'));
+
 @Module({
   imports: [
     BullModule.forRoot({
-      connection: new Redis((process.env.REDIS_URL || 'redis://localhost:6379').replace(/["']/g, ''), {
-        maxRetriesPerRequest: null,
-      }) as any,
+      connection: redisConnection as any,
       defaultJobOptions: {
         removeOnComplete: true,
         removeOnFail: 100,
@@ -25,8 +41,6 @@ import { QuestionsModule } from './questions/questions.module';
           delay: 30000,
         },
       },
-      // IMPORTANT: Tuning for Upstash Redis (to stay within free tier request limits)
-      // These settings reduce the frequency of metadata checks and lock renewals.
     }),
     ApplicationsModule,
     AssessmentModule,
