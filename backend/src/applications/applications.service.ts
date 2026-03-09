@@ -19,12 +19,15 @@ export class ApplicationsService {
         private notifications: NotificationsService,
         @InjectQueue('application-ai-queue') private aiQueue: Queue,
     ) {
-        if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION) {
+        const hasKeys = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION);
+        console.log(`[ApplicationsService] AWS Keys found: ${hasKeys} (Region: ${process.env.AWS_REGION})`);
+
+        if (hasKeys) {
             this.s3Client = new S3Client({
-                region: process.env.AWS_REGION,
+                region: process.env.AWS_REGION!,
                 credentials: {
-                    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
                 }
             });
         }

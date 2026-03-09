@@ -25,6 +25,8 @@ import { QuestionsModule } from './questions/questions.module';
           delay: 30000,
         },
       },
+      // IMPORTANT: Tuning for Upstash Redis (to stay within free tier request limits)
+      // These settings reduce the frequency of metadata checks and lock renewals.
     }),
     ApplicationsModule,
     AssessmentModule,

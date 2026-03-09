@@ -17,18 +17,10 @@ interface Candidate {
     phone: string;
     position: string;
     experience: number;
-    expectedSalary: number | null;
     currentLocation: string | null;
     cvDriveLink: string | null;
-    cvText: string | null;
     motivation: string | null;
     status: CandidateStatus;
-    rejectionReason: string | null;
-    layer1Score: number | null;
-    aiMotivationScore: number | null;
-    aiCvScore: number | null;
-    applicationScore: number | null;
-    finalScore: number | null;
     createdAt: string;
     updatedAt: string;
     assessments?: Assessment[];
@@ -38,11 +30,7 @@ interface Assessment {
     id: string;
     status: string;
     mcqScore: number | null;
-    audioScore: number | null;
-    finalScore: number | null;
     audioDriveLink: string | null;
-    aiSpeechRawScores: any;
-    aiSpeechTranscript: string | null;
     completedAt: string | null;
     createdAt: string;
 }
@@ -535,10 +523,6 @@ export default function AdminDashboard() {
                                             <div className="text-gray-500 text-xs">Location</div>
                                             <div className="font-medium">{selectedCandidate.currentLocation || '—'}</div>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded-lg flex flex-col justify-center">
-                                            <div className="text-gray-500 text-xs">Stage 1 Score</div>
-                                            <div className="font-medium">{selectedCandidate.layer1Score ?? '—'}</div>
-                                        </div>
                                     </div>
                                     {selectedCandidate.motivation && (
                                         <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-sm">
@@ -547,28 +531,19 @@ export default function AdminDashboard() {
                                         </div>
                                     )}
                                     {selectedCandidate.cvDriveLink && (
-                                        <div className="bg-gray-50 border p-3 rounded-lg text-sm flex justify-between items-center">
-                                            <div>
-                                                <div className="text-gray-500 text-xs font-medium mb-1">CV File</div>
-                                                <div className="text-gray-900 truncate max-w-[200px]">{selectedCandidate.cvDriveLink.split('/').pop()}</div>
-                                            </div>
-                                            <a href={selectedCandidate.cvDriveLink} target="_blank" rel="noreferrer" className="text-primary-600 hover:text-primary-700 text-xs font-semibold">
-                                                Open CV
-                                            </a>
+                                        <div className="pt-2">
+                                            <Button
+                                                variant="outline"
+                                                className="w-full justify-center gap-2 border-primary-200 text-primary-700 hover:bg-primary-50 font-semibold"
+                                                onClick={() => window.open(selectedCandidate.cvDriveLink!, '_blank')}
+                                            >
+                                                <FileUp className="w-4 h-4" />
+                                                Check CV
+                                            </Button>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* AI Scores */}
-                                <div className="space-y-3">
-                                    <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Stage 2 Scores</h4>
-                                    <div className="grid grid-cols-1 gap-3">
-                                        <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
-                                            <div className="text-2xl font-bold text-gray-900">{selectedCandidate.aiMotivationScore ?? '—'}</div>
-                                            <div className="text-xs text-gray-500 mt-1">Motivation</div>
-                                        </div>
-                                    </div>
-                                </div>
 
                                 {/* Assessment Scores */}
                                 {selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (
@@ -576,16 +551,10 @@ export default function AdminDashboard() {
                                         <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Assessment Results</h4>
                                         {selectedCandidate.assessments.map((a: Assessment) => (
                                             <div key={a.id} className="space-y-3">
-                                                <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-1 gap-3">
                                                     <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
                                                         <div className="text-2xl font-bold text-gray-900">{a.mcqScore ?? '—'}%</div>
                                                         <div className="text-xs text-gray-500 mt-1">MCQ Score</div>
-                                                    </div>
-                                                    <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
-                                                        <div className={cn("text-2xl font-bold", (a.audioScore || 0) >= 70 ? "text-green-600" : "text-gray-900")}>
-                                                            {a.audioScore ?? '—'}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500 mt-1">Audio Score</div>
                                                     </div>
                                                 </div>
 
@@ -599,32 +568,6 @@ export default function AdminDashboard() {
                                                     </div>
                                                 )}
 
-                                                {/* Azure Speech Raw Scores */}
-                                                {a.aiSpeechRawScores && Object.keys(a.aiSpeechRawScores).length > 0 && !a.aiSpeechRawScores.note && (
-                                                    <div className="bg-gray-50 border rounded-xl p-4 space-y-2">
-                                                        <div className="text-xs font-semibold text-gray-600 uppercase">Azure Speech Breakdown</div>
-                                                        {Object.entries(a.aiSpeechRawScores).map(([key, val]) => (
-                                                            <div key={key} className="flex items-center gap-3">
-                                                                <span className="text-xs text-gray-500 w-28 capitalize">{key}</span>
-                                                                <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                                                    <div
-                                                                        className={cn("h-2 rounded-full", (val as number) >= 70 ? "bg-green-500" : (val as number) >= 40 ? "bg-yellow-500" : "bg-red-500")}
-                                                                        style={{ width: `${Math.min(val as number, 100)}%` }}
-                                                                    />
-                                                                </div>
-                                                                <span className="text-xs font-medium w-10 text-right">{(val as number).toFixed(0)}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-
-                                                {/* Transcript */}
-                                                {a.aiSpeechTranscript && (
-                                                    <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-sm">
-                                                        <div className="text-blue-600 text-xs font-medium mb-1">Speech Transcript</div>
-                                                        <div className="text-blue-900 italic">"{a.aiSpeechTranscript}"</div>
-                                                    </div>
-                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -636,7 +579,7 @@ export default function AdminDashboard() {
                                 {selectedCandidate.status === 'MANUAL_REVIEW' && (
                                     <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-xl mt-6 space-y-3">
                                         <h4 className="text-sm font-semibold text-yellow-800 uppercase tracking-wider">Manual Review Action Required</h4>
-                                        <p className="text-xs text-yellow-700">This candidate scored between 50-74.9 on their audio assessment and requires human review of all 4 scores above to make a final decision.</p>
+                                        <p className="text-xs text-yellow-700">This candidate requires manual review to make a final decision.</p>
                                         <div className="flex gap-3 pt-2">
                                             <Button
                                                 className="flex-1 bg-green-600 hover:bg-green-700 text-white"

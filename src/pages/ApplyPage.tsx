@@ -33,7 +33,9 @@ const applySchema = z.object({
     comfortableNightShifts: z.boolean(),
 
     whyTeachWithUs: z.string().min(10, 'Please provide a short answer (min 10 characters)'),
-    cvFile: z.any().optional(), // In a real app, handle File object. For now we just check if it exists or use controlled input.
+    cvFile: z.any()
+        .refine((files) => files instanceof FileList && files.length > 0, 'Resume/CV is required (PDF only)')
+        .refine((files) => files?.[0]?.size <= 5 * 1024 * 1024, 'Max file size is 5MB'),
 }).superRefine((data, ctx) => {
     if (data.priorExperience) {
         if (data.yearsOfExperience === undefined || Number.isNaN(data.yearsOfExperience) || data.yearsOfExperience < 0) {
@@ -418,19 +420,25 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
                                     )}
                                 </div>
 
-                                <div className="space-y-4">
-                                    <Label>Availability Preferences</Label>
-                                    <label className="flex items-center gap-3 p-4 rounded-lg border cursor-pointer hover:bg-gray-50 transition-colors">
-                                        <input type="checkbox" {...register('available120Hours')} className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-                                        <span className="text-sm">Available 120 hours/month (approx 4 hrs/day)?</span>
+                                <div className="space-y-4 mt-6 pt-6 border-t border-gray-100">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <CheckCircle2 className="w-5 h-5 text-red-500" />
+                                        <Label className="text-red-600 font-bold text-base">Mandatory Requirements</Label>
+                                    </div>
+                                    <label className="flex items-center gap-3 p-4 rounded-lg border border-red-100 bg-red-50/30 cursor-pointer hover:bg-red-50 transition-colors">
+                                        <input type="checkbox" {...register('available120Hours')} className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                                        <span className="text-sm font-medium text-gray-800">Available 120 hours/month (approx 4 hrs/day)?</span>
                                     </label>
-                                    <label className="flex items-center gap-3 p-4 rounded-lg border cursor-pointer hover:bg-gray-50 transition-colors">
-                                        <input type="checkbox" {...register('openToWeekends')} className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-                                        <span className="text-sm">Open to working on weekends?</span>
+                                    <label className="flex items-center gap-3 p-4 rounded-lg border border-red-100 bg-red-50/30 cursor-pointer hover:bg-red-50 transition-colors">
+                                        <input type="checkbox" {...register('openToWeekends')} className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                                        <span className="text-sm font-medium text-gray-800">Open to working on weekends?</span>
                                     </label>
+                                </div>
+                                <div className="space-y-4 mt-6 pt-6 border-t border-gray-100">
+                                    <Label className="font-bold text-base">Other Preferences</Label>
                                     <label className="flex items-center gap-3 p-4 rounded-lg border cursor-pointer hover:bg-gray-50 transition-colors">
                                         <input type="checkbox" {...register('comfortableNightShifts')} className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-                                        <span className="text-sm">Comfortable teaching evening/night shifts? (Comes with higher payout)</span>
+                                        <span className="text-sm text-gray-800">Comfortable teaching evening/night shifts? (Comes with higher payout)</span>
                                     </label>
                                 </div>
                             </div>
@@ -451,7 +459,7 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Resume / CV (PDF)</Label>
+                                    <Label>Resume / CV (PDF) <span className="text-red-500">*</span></Label>
                                     <label className={cn(
                                         "flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors",
                                         cvFile && cvFile.length > 0
@@ -475,6 +483,7 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
                                         </div>
                                         <input type="file" className="hidden" accept=".pdf" {...register('cvFile')} />
                                     </label>
+                                    {errors.cvFile && <p className="text-sm text-red-500 mt-2">{errors.cvFile.message as string}</p>}
                                 </div>
                             </div>
                         )}

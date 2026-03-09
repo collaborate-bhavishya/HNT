@@ -6,7 +6,9 @@ import { PrismaService } from '../prisma.service';
 @Processor('audio-processing-queue', {
     concurrency: 1,
     maxStalledCount: 1,
-    stalledInterval: 300000,
+    stalledInterval: 300000, // 5 minutes
+    lockDuration: 300000,    // 5 minutes
+    drainDelay: 60,          // Wait 60s when queue is empty to avoid aggressive polling
 })
 export class AudioWorker extends WorkerHost {
     private readonly logger = new Logger(AudioWorker.name);

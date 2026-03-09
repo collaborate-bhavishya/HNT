@@ -315,7 +315,7 @@ export default function AssessmentPage() {
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Section 1: Subject MCQ</h3>
                   <p className="text-sm text-gray-600 leading-relaxed mt-1">
-                    20 multiple-choice questions tailored to your chosen domain. Covers easy (40%), medium (30%), and hard (30%) difficulty levels.
+                    15 multiple-choice questions tailored to your chosen domain. Covers easy (40%), medium (33%), and hard (27%) difficulty levels.
                   </p>
                 </div>
               </div>
@@ -524,30 +524,13 @@ export default function AssessmentPage() {
               "How would you explain the concept of variables in programming to a 10-year-old?"
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center space-y-8">
-              <div className="w-full max-w-md bg-gray-50 border rounded-xl overflow-hidden shadow-inner h-32 relative">
-                <canvas ref={canvasRef} className="w-full h-full" width={400} height={128} />
-                {!isRecording && !audioUrl && (
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 font-medium text-sm text-center px-4">
-                    Waveform visualization will appear here during recording
-                  </div>
-                )}
-                {isPlaying && (
-                  <div className="absolute inset-0 bg-purple-500/10 flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-purple-600 font-medium">
-                      <Volume2 className="w-5 h-5 animate-pulse" />
-                      <span>Playing...</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-4">
+            <div className="flex-1 flex flex-col items-center justify-center space-y-6">
+              <div className="flex items-center justify-center gap-4">
                 {!isRecording ? (
                   <Button
                     onClick={startRecording}
                     variant={audioUrl ? "outline" : "default"}
-                    className={cn("gap-2 h-14 px-8 rounded-full", audioUrl ? "" : "bg-purple-600 hover:bg-purple-700")}
+                    className={cn("gap-2 h-14 px-8 rounded-full shadow-md transition-all", audioUrl ? "" : "bg-purple-600 hover:bg-purple-700")}
                   >
                     <Mic className="w-5 h-5" />
                     {audioUrl ? 'Re-record' : 'Start Recording'}
@@ -556,7 +539,7 @@ export default function AssessmentPage() {
                   <Button
                     onClick={stopRecording}
                     variant="destructive"
-                    className="gap-2 h-14 px-8 rounded-full animate-pulse"
+                    className="gap-2 h-14 px-8 rounded-full animate-pulse shadow-md transition-all"
                   >
                     <Square className="w-5 h-5 fill-current" />
                     Stop Recording
@@ -567,8 +550,8 @@ export default function AssessmentPage() {
                   <Button
                     variant={isPlaying ? "default" : "secondary"}
                     className={cn(
-                      "gap-2 h-14 px-8 rounded-full transition-all",
-                      isPlaying && "bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
+                      "gap-2 h-14 px-8 rounded-full transition-all shadow-md",
+                      isPlaying && "bg-purple-600 hover:bg-purple-700 text-white"
                     )}
                     onClick={() => {
                       if (isPlaying && playbackAudioRef.current) {
@@ -587,6 +570,23 @@ export default function AssessmentPage() {
                     {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
                     {isPlaying ? 'Stop' : 'Playback'}
                   </Button>
+                )}
+              </div>
+
+              <div className="w-full max-w-sm h-12 relative flex items-center justify-center mt-4">
+                <canvas ref={canvasRef} className="w-full h-full opacity-60 pointer-events-none" width={400} height={48} />
+                {!isRecording && !audioUrl && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="h-0.5 w-full bg-gray-200 rounded-full" />
+                  </div>
+                )}
+                {isPlaying && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-purple-50/80 rounded-lg">
+                    <div className="flex items-center gap-2 text-purple-600 text-xs font-bold">
+                      <Volume2 className="w-4 h-4 animate-pulse" />
+                      <span>PLAYING</span>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

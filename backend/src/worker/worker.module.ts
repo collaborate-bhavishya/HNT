@@ -8,11 +8,10 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
     imports: [
-        BullModule.forRoot({
-            connection: new Redis((process.env.REDIS_URL || 'redis://localhost:6379').replace(/["']/g, ''), {
-                maxRetriesPerRequest: null,
-            }) as any,
-        }),
+        BullModule.registerQueue(
+            { name: 'application-ai-queue' },
+            { name: 'audio-processing-queue' }
+        ),
         NotificationsModule,
     ],
     providers: [ApplicationAiWorker, AudioWorker, PrismaService],

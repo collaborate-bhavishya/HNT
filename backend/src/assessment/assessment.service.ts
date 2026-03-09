@@ -89,17 +89,17 @@ export class AssessmentService {
         // Shuffle helper
         const shuffle = (array: any[]) => array.sort(() => 0.5 - Math.random());
 
-        // We want 20 questions: 8 easy (40%), 6 medium (30%), 6 hard (30%)
+        // We want 15 questions: 6 easy (40%), 5 medium (33%), 4 hard (27%)
         let selectedQuestions = [
-            ...shuffle(easyQuestions).slice(0, 8),
-            ...shuffle(mediumQuestions).slice(0, 6),
-            ...shuffle(hardQuestions).slice(0, 6),
+            ...shuffle(easyQuestions).slice(0, 6),
+            ...shuffle(mediumQuestions).slice(0, 5),
+            ...shuffle(hardQuestions).slice(0, 4),
         ];
 
-        // If the DB doesn't have 20 questions yet, we pad with whatever is available
-        if (selectedQuestions.length < 20) {
+        // If the DB doesn't have 15 questions yet, we pad with whatever is available
+        if (selectedQuestions.length < 15) {
             const allAvailable = await this.prisma.question.findMany({ where: { category: topic } });
-            selectedQuestions = shuffle(allAvailable).slice(0, 20);
+            selectedQuestions = shuffle(allAvailable).slice(0, 15);
         }
 
         // Fallback hardcoded if absolutely 0 questions exist in the DB (for testing before CSV is loaded)

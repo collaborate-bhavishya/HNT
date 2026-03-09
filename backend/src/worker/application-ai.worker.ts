@@ -8,7 +8,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 @Processor('application-ai-queue', {
     concurrency: 1,
     maxStalledCount: 1,
-    stalledInterval: 300000,
+    stalledInterval: 300000, // 5 minutes (saves metadata checks)
+    lockDuration: 300000,    // 5 minutes (saves lock renewal calls)
+    drainDelay: 60,          // 60 seconds (saves polling calls when queue is empty)
 })
 export class ApplicationAiWorker extends WorkerHost {
     private readonly logger = new Logger(ApplicationAiWorker.name);
