@@ -415,7 +415,7 @@ export default function AdminDashboard() {
                                     <p className="text-sm text-gray-600">
                                         Upload a CSV file to populate your technical pool. The file should have columns for:
                                         <code className="block mt-2 p-2 bg-gray-50 rounded text-xs text-primary-700 font-mono">
-                                            category, questionText, options (pipe separated), correctAnswer, difficulty
+                                            #, Category, Difficulty, Question, Option A, Option B, Option C, Option D, Correct Answer
                                         </code>
                                     </p>
                                 </div>
@@ -472,7 +472,7 @@ export default function AdminDashboard() {
                             <Card className="bg-white p-6">
                                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">CSV Template Preview</h3>
                                 <div className="bg-gray-900 rounded-xl p-4 text-gray-300 font-mono text-xs overflow-x-auto whitespace-pre">
-                                    {"# Header Row Required\ncategory,questionText,options,correctAnswer,difficulty\nPython,\"Output of 2**3?\",\"6|8|9|16\",8,low\nJavaScript,\"Which is not a data type?\",\"String|Boolean|Number|Float\",Float,medium"}
+                                    {"# Header Row Required\n#,Category,Difficulty,Question,Option A,Option B,Option C,Option D,Correct Answer\n1,Python,easy,\"Output of 2**3?\",6,8,9,16,8\n2,JavaScript,medium,\"Which is not a data type?\",String,Boolean,Number,Float,Float"}
                                 </div>
                             </Card>
                         </div>

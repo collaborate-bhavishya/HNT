@@ -7,16 +7,16 @@ export class QuestionService {
 
     async importQuestions(csvData: string) {
         const lines = csvData.split('\n');
-        // Format: category,questionText,option1|option2|option3|option4,correctAnswer,difficulty
+        // Format: #, Category, Difficulty, Question, Option A, Option B, Option C, Option D, Correct Answer
 
-        // Remove header
         const dataLines = lines.slice(1);
         const imported: any[] = [];
 
         for (const line of dataLines) {
             if (!line.trim()) continue;
 
-            const [category, questionText, optionsStr, correctAnswer, difficultyRaw] = this.parseCsvLine(line);
+            const cols = this.parseCsvLine(line);
+            const [, category, difficultyRaw, questionText, optA, optB, optC, optD, correctAnswer] = cols;
 
             if (!category || !questionText) continue;
 
@@ -24,14 +24,14 @@ export class QuestionService {
             if (difficulty === 'low') difficulty = 'easy';
             if (difficulty === 'high') difficulty = 'hard';
 
-            const options = (optionsStr || "").split('|').map(o => o.trim());
+            const options = [optA, optB, optC, optD].map(o => (o || '').trim()).filter(Boolean);
 
             const question = await this.prisma.question.create({
                 data: {
                     category: category.trim(),
                     questionText: questionText.trim(),
                     options: options,
-                    correctAnswer: (correctAnswer || "").trim(),
+                    correctAnswer: (correctAnswer || '').trim(),
                     difficulty,
                 }
             });
