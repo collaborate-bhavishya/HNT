@@ -6,17 +6,13 @@ export class QuestionService {
     constructor(private readonly prisma: PrismaService) { }
 
     async importQuestions(csvData: string) {
-        const lines = csvData.split('\n');
-        // Format: #, Category, Difficulty, Question, Option A, Option B, Option C, Option D, Correct Answer
-
-        const dataLines = lines.slice(1);
+        // Format: #, Category, Difficulty, Question, Option A, Option B, Option C, Option D, Correct Answer[, subject]
+        const rows = this.parseCsv(csvData);
+        const dataRows = rows.slice(1);
         const imported: any[] = [];
 
-        for (const line of dataLines) {
-            if (!line.trim()) continue;
-
-            const cols = this.parseCsvLine(line);
-            const [, category, difficultyRaw, questionText, optA, optB, optC, optD, correctAnswer] = cols;
+        for (const cols of dataRows) {
+            const [, category, difficultyRaw, questionText, optA, optB, optC, optD, correctAnswer, subject] = cols;
 
             if (!category || !questionText) continue;
 
@@ -33,6 +29,7 @@ export class QuestionService {
                     options: options,
                     correctAnswer: (correctAnswer || '').trim(),
                     difficulty,
+                    subject: (subject || 'coding').trim(),
                 }
             });
             imported.push(question);
@@ -40,24 +37,46 @@ export class QuestionService {
         return { count: imported.length };
     }
 
-    private parseCsvLine(line: string): string[] {
-        const result: string[] = [];
-        let curValue = "";
+    private parseCsv(csvData: string): string[][] {
+        const rows: string[][] = [];
+        let row: string[] = [];
+        let cell = '';
         let inQuotes = false;
 
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                result.push(curValue);
-                curValue = "";
+        for (let i = 0; i < csvData.length; i++) {
+            const ch = csvData[i];
+            const next = csvData[i + 1];
+
+            if (inQuotes) {
+                if (ch === '"' && next === '"') {
+                    cell += '"';
+                    i++;
+                } else if (ch === '"') {
+                    inQuotes = false;
+                } else {
+                    cell += ch;
+                }
             } else {
-                curValue += char;
+                if (ch === '"') {
+                    inQuotes = true;
+                } else if (ch === ',') {
+                    row.push(cell);
+                    cell = '';
+                } else if (ch === '\n' || (ch === '\r' && next === '\n')) {
+                    row.push(cell);
+                    cell = '';
+                    if (row.some(c => c.trim())) rows.push(row);
+                    row = [];
+                    if (ch === '\r') i++;
+                } else {
+                    cell += ch;
+                }
             }
         }
-        result.push(curValue);
-        return result;
+
+        row.push(cell);
+        if (row.some(c => c.trim())) rows.push(row);
+        return rows;
     }
 
     async getQuestionsByCategory(category: string) {
