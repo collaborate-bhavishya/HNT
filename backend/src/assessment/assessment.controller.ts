@@ -1,5 +1,5 @@
-import { Controller, Get, Param, Post, Body, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Controller, Get, Param, Post, Body, UseInterceptors, UploadedFiles, BadRequestException } from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { AssessmentService } from './assessment.service';
 
 @Controller('api/assessment')
@@ -23,15 +23,20 @@ export class AssessmentController {
     }
 
     @Post(':token/submit')
-    @UseInterceptors(FileInterceptor('audio'))
+    @UseInterceptors(FileFieldsInterceptor([
+        { name: 'introAudio', maxCount: 1 },
+        { name: 'audio', maxCount: 1 },
+    ]))
     async submitAssessment(
         @Param('token') token: string,
         @Body() payload: any,
-        @UploadedFile() file: Express.Multer.File,
+        @UploadedFiles() files: { introAudio?: Express.Multer.File[]; audio?: Express.Multer.File[] },
     ) {
-        if (!file) {
-            throw new BadRequestException('Audio file is required');
+        const introFile = files?.introAudio?.[0];
+        const teachingFile = files?.audio?.[0];
+        if (!teachingFile) {
+            throw new BadRequestException('Teaching audio file is required');
         }
-        return this.assessmentService.evaluateAssessment(token, payload, file);
+        return this.assessmentService.evaluateAssessment(token, payload, teachingFile, introFile);
     }
 }

@@ -142,7 +142,37 @@ export class AssessmentService {
         };
     }
 
-    async evaluateAssessment(token: string, payload: any, file: Express.Multer.File) {
+    private async uploadAudioFile(file: Express.Multer.File, prefix: string, assessmentId: string): Promise<{ link: string; localPath: string | null }> {
+        const fileName = `${prefix}-${assessmentId}-${Date.now()}.webm`;
+        let link: string | null = null;
+        let localPath: string | null = null;
+
+        if (this.s3Client && process.env.AWS_S3_BUCKET_NAME) {
+            const command = new PutObjectCommand({
+                Bucket: process.env.AWS_S3_BUCKET_NAME,
+                Key: `audio/${fileName}`,
+                Body: file.buffer,
+                ContentType: file.mimetype,
+            });
+            await this.s3Client.send(command);
+            link = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/audio/${fileName}`;
+            this.logger.log(`${prefix} audio saved to S3: ${link}`);
+        } else {
+            const uploadDir = path.join(process.cwd(), 'uploads', 'audio');
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            localPath = path.join(uploadDir, fileName);
+            fs.writeFileSync(localPath, file.buffer);
+            const serverUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+            link = `${serverUrl}/uploads/audio/${fileName}`;
+            this.logger.log(`${prefix} audio saved to local disk: ${localPath}`);
+        }
+
+        return { link: link!, localPath };
+    }
+
+    async evaluateAssessment(token: string, payload: any, teachingFile: Express.Multer.File, introFile?: Express.Multer.File) {
         const assessment = await this.prisma.assessment.findUnique({
             where: { token },
         });
@@ -152,11 +182,12 @@ export class AssessmentService {
             throw new BadRequestException('Already submitted');
         }
 
-        if (file && !file.mimetype.startsWith('audio/') && !file.mimetype.includes('octet-stream')) {
-            throw new BadRequestException('Only audio files are allowed');
+        for (const f of [teachingFile, introFile].filter(Boolean) as Express.Multer.File[]) {
+            if (!f.mimetype.startsWith('audio/') && !f.mimetype.includes('octet-stream')) {
+                throw new BadRequestException('Only audio files are allowed');
+            }
         }
 
-        // Reconstruct correctAnswers map from stored mcqQuestions
         const correctAnswers: Record<string, any> = {};
         const storedQuestions = ((assessment as any).mcqQuestions as any[]) || [];
 
@@ -183,16 +214,11 @@ export class AssessmentService {
             for (const answer of mcqAnswers) {
                 const correctAnswer = correctAnswers[answer.questionId];
 
-                // Some legacy compatibility: if they were using 0-index based correctAnswer in UI
                 if (typeof correctAnswer === 'number') {
                     if (correctAnswer === answer.selectedOption) {
                         mcqCorrect++;
                     }
                 } else if (typeof correctAnswer === 'string') {
-                    // If options logic changed and they send back string or index, check accordingly:
-                    // If they send the index of selected option, we need to compare to the index or string
-                    // But typically options are strings. We will assume the UI sends the index in selectedOption
-                    // We'll map the index back to option text or assume correctly.
                     const questionObj = storedQuestions.find(sq => sq.id === answer.questionId);
                     const options = questionObj?.options as string[];
                     if (options && options[answer.selectedOption] === correctAnswer) {
@@ -207,36 +233,20 @@ export class AssessmentService {
             }
 
             if (mcqScore >= 60) {
-                let audioDriveLink: string | null = null;
                 try {
+                    let audioDriveLink: string | null = null;
+                    let introAudioDriveLink: string | null = null;
                     let audioFilePath: string | null = null;
-                    if (file && file.buffer) {
-                        const fileName = `${assessment.id}-${Date.now()}.webm`;
 
-                        if (this.s3Client && process.env.AWS_S3_BUCKET_NAME) {
-                            const command = new PutObjectCommand({
-                                Bucket: process.env.AWS_S3_BUCKET_NAME,
-                                Key: `audio/${fileName}`,
-                                Body: file.buffer,
-                                ContentType: file.mimetype,
-                            });
+                    if (teachingFile?.buffer) {
+                        const result = await this.uploadAudioFile(teachingFile, 'teaching', assessment.id);
+                        audioDriveLink = result.link;
+                        audioFilePath = result.localPath;
+                    }
 
-                            await this.s3Client.send(command);
-                            audioDriveLink = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/audio/${fileName}`;
-                            this.logger.log(`Audio saved to S3: ${audioDriveLink}`);
-                        } else {
-                            const uploadDir = path.join(process.cwd(), 'uploads', 'audio');
-                            if (!fs.existsSync(uploadDir)) {
-                                fs.mkdirSync(uploadDir, { recursive: true });
-                            }
-
-                            audioFilePath = path.join(uploadDir, fileName);
-                            fs.writeFileSync(audioFilePath, file.buffer);
-
-                            const serverUrl = process.env.BACKEND_URL || 'http://localhost:3000';
-                            audioDriveLink = `${serverUrl}/uploads/audio/${fileName}`;
-                            this.logger.log(`Audio saved to local disk: ${audioFilePath}`);
-                        }
+                    if (introFile?.buffer) {
+                        const result = await this.uploadAudioFile(introFile, 'intro', assessment.id);
+                        introAudioDriveLink = result.link;
                     }
 
                     await this.prisma.assessment.update({
@@ -244,12 +254,12 @@ export class AssessmentService {
                         data: {
                             mcqScore,
                             audioDriveLink,
+                            introAudioDriveLink,
                             status: 'AUDIO_PROCESSING',
                             completedAt: new Date(),
                         },
                     });
 
-                    // Update candidate status too so Admin Dashboard filters work
                     await this.prisma.candidate.update({
                         where: { id: assessment.candidateId },
                         data: { status: 'AUDIO_PROCESSING' }
@@ -257,21 +267,17 @@ export class AssessmentService {
 
                     await this.audioQueue.add('process-audio', {
                         assessmentId: assessment.id,
-                        audioFilePath, // Pass path instead of base64
-                        audioMimeType: file?.mimetype,
+                        audioFilePath,
+                        audioMimeType: teachingFile?.mimetype,
                     });
 
-                    // trigger AI scoring for Motivation and CV now that MCQ passed
                     await this.aiQueue.add('process-application-ai', { candidateId: assessment.candidateId });
                 } catch (queueError) {
                     console.error('CRITICAL ERROR IN ASSESSMENT SUBMISSION:', queueError);
-                    // We DON'T re-throw here because we want to return the result, 
-                    // but this will help us see the error in logs next time.
-                    throw queueError; // Actually, let's throw so the user gets the error but we see it.
+                    throw queueError;
                 }
 
             } else {
-                // MCQ Failed
                 await this.prisma.assessment.update({
                     where: { id: assessment.id },
                     data: {
@@ -289,7 +295,6 @@ export class AssessmentService {
                     }
                 });
 
-                // Send rejection email right away
                 await this.notifications.sendFormRejectionEmail(updatedCandidate.email);
             }
 

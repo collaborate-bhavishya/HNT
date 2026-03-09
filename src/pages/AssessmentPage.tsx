@@ -32,9 +32,14 @@ export default function AssessmentPage() {
   // Anti-cheat state
   const [warnings, setWarnings] = useState(0);
 
-  // Audio state
+  // Audio state – two questions
+  const audioPrompts = [
+    { label: 'Introduction', prompt: '"Tell me about yourself."' },
+    { label: 'Teaching Demo', prompt: '"How would you explain the concept of variables in programming to a 10-year-old?"' },
+  ];
+  const [audioStep, setAudioStep] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioUrls, setAudioUrls] = useState<(string | null)[]>([null, null]);
   const [isPlaying, setIsPlaying] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -42,7 +47,7 @@ export default function AssessmentPage() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>(-1);
-  const audioBlobRef = useRef<Blob | null>(null);
+  const audioBlobsRef = useRef<(Blob | null)[]>([null, null]);
   const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // --- API FETCH ---
@@ -167,8 +172,9 @@ export default function AssessmentPage() {
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
-        audioBlobRef.current = blob;
-        setAudioUrl(URL.createObjectURL(blob));
+        const idx = audioStep;
+        audioBlobsRef.current = audioBlobsRef.current.map((b, i) => i === idx ? blob : b);
+        setAudioUrls(prev => prev.map((u, i) => i === idx ? URL.createObjectURL(blob) : u));
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -228,8 +234,11 @@ export default function AssessmentPage() {
       }))
     ));
 
-    if (audioBlobRef.current) {
-      formData.append('audio', audioBlobRef.current, 'recording.webm');
+    if (audioBlobsRef.current[0]) {
+      formData.append('introAudio', audioBlobsRef.current[0], 'intro-recording.webm');
+    }
+    if (audioBlobsRef.current[1]) {
+      formData.append('audio', audioBlobsRef.current[1], 'recording.webm');
     }
 
     setIsSubmitting(true);
@@ -514,14 +523,24 @@ export default function AssessmentPage() {
                 <Headphones className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Section 2</span>
-                <h2 className="text-xl font-bold text-gray-900">Audio Recording</h2>
+                <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Section 2 &middot; Question {audioStep + 1} of {audioPrompts.length}</span>
+                <h2 className="text-xl font-bold text-gray-900">{audioPrompts[audioStep].label}</h2>
               </div>
+            </div>
+
+            {/* Step indicator */}
+            <div className="flex gap-2 mt-4">
+              {audioPrompts.map((_, idx) => (
+                <div key={idx} className={cn(
+                  "h-1.5 flex-1 rounded-full transition-all",
+                  idx < audioStep ? "bg-purple-500" : idx === audioStep ? "bg-purple-400" : "bg-gray-200"
+                )} />
+              ))}
             </div>
 
             <div className="bg-purple-50 border border-purple-100 rounded-xl p-6 text-purple-900 font-medium text-lg mb-8 text-center mt-6">
               <p className="text-sm text-purple-600 mb-2 font-bold uppercase tracking-wider">Spoken Assessment Topic</p>
-              "How would you explain the concept of variables in programming to a 10-year-old?"
+              {audioPrompts[audioStep].prompt}
             </div>
 
             <div className="flex-1 flex flex-col items-center justify-center space-y-6">
@@ -529,11 +548,11 @@ export default function AssessmentPage() {
                 {!isRecording ? (
                   <Button
                     onClick={startRecording}
-                    variant={audioUrl ? "outline" : "default"}
-                    className={cn("gap-2 h-14 px-8 rounded-full shadow-md transition-all", audioUrl ? "" : "bg-purple-600 hover:bg-purple-700")}
+                    variant={audioUrls[audioStep] ? "outline" : "default"}
+                    className={cn("gap-2 h-14 px-8 rounded-full shadow-md transition-all", audioUrls[audioStep] ? "" : "bg-purple-600 hover:bg-purple-700")}
                   >
                     <Mic className="w-5 h-5" />
-                    {audioUrl ? 'Re-record' : 'Start Recording'}
+                    {audioUrls[audioStep] ? 'Re-record' : 'Start Recording'}
                   </Button>
                 ) : (
                   <Button
@@ -546,7 +565,7 @@ export default function AssessmentPage() {
                   </Button>
                 )}
 
-                {audioUrl && !isRecording && (
+                {audioUrls[audioStep] && !isRecording && (
                   <Button
                     variant={isPlaying ? "default" : "secondary"}
                     className={cn(
@@ -560,7 +579,7 @@ export default function AssessmentPage() {
                         setIsPlaying(false);
                         return;
                       }
-                      const audio = new Audio(audioUrl);
+                      const audio = new Audio(audioUrls[audioStep]!);
                       playbackAudioRef.current = audio;
                       setIsPlaying(true);
                       audio.onended = () => setIsPlaying(false);
@@ -575,7 +594,7 @@ export default function AssessmentPage() {
 
               <div className="w-full max-w-sm h-12 relative flex items-center justify-center mt-4">
                 <canvas ref={canvasRef} className="w-full h-full opacity-60 pointer-events-none" width={400} height={48} />
-                {!isRecording && !audioUrl && (
+                {!isRecording && !audioUrls[audioStep] && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="h-0.5 w-full bg-gray-200 rounded-full" />
                   </div>
@@ -594,17 +613,30 @@ export default function AssessmentPage() {
             <div className="mt-8 flex justify-between items-center pt-6 border-t">
               <Button
                 variant="outline"
-                onClick={() => setCurrentQuestionIdx(i => i - 1)}
+                onClick={() => {
+                  if (audioStep > 0) setAudioStep(s => s - 1);
+                  else setCurrentQuestionIdx(i => i - 1);
+                }}
               >
-                ← Back to MCQs
+                {audioStep > 0 ? '← Previous Question' : '← Back to MCQs'}
               </Button>
-              <Button
-                onClick={handleComplete}
-                disabled={!audioUrl || isRecording || isSubmitting}
-                className="h-12 px-8 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-full"
-              >
-                {isSubmitting ? 'Submitting...' : '🚀 Submit Assessment'}
-              </Button>
+              {audioStep < audioPrompts.length - 1 ? (
+                <Button
+                  onClick={() => { setIsPlaying(false); setAudioStep(s => s + 1); }}
+                  disabled={!audioUrls[audioStep] || isRecording}
+                  className="h-12 px-8 text-lg bg-purple-600 hover:bg-purple-700 rounded-full"
+                >
+                  Next Audio Question →
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleComplete}
+                  disabled={audioUrls.some(u => !u) || isRecording || isSubmitting}
+                  className="h-12 px-8 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-full"
+                >
+                  {isSubmitting ? 'Submitting...' : '🚀 Submit Assessment'}
+                </Button>
+              )}
             </div>
           </div>
         ) : (

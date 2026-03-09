@@ -30,6 +30,7 @@ interface Assessment {
     id: string;
     status: string;
     mcqScore: number | null;
+    introAudioDriveLink: string | null;
     audioDriveLink: string | null;
     completedAt: string | null;
     createdAt: string;
@@ -558,10 +559,17 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </div>
 
-                                                {/* Audio Playback Center */}
+                                                {a.introAudioDriveLink && (
+                                                    <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-lg flex flex-col items-center justify-between gap-2">
+                                                        <span className="text-indigo-700 text-xs font-semibold w-full text-left">Intro: Tell Me About Yourself</span>
+                                                        <audio controls className="w-full h-8" src={a.introAudioDriveLink}>
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                    </div>
+                                                )}
                                                 {a.audioDriveLink && (
                                                     <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg flex flex-col items-center justify-between gap-2">
-                                                        <span className="text-purple-700 text-xs font-semibold w-full text-left">Audio Recording</span>
+                                                        <span className="text-purple-700 text-xs font-semibold w-full text-left">Teaching Demo Recording</span>
                                                         <audio controls className="w-full h-8" src={a.audioDriveLink}>
                                                             Your browser does not support the audio element.
                                                         </audio>

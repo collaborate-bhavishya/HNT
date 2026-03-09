@@ -189,6 +189,7 @@ export class ApplicationsService {
                         aiSpeechTranscript: true,
                         completedAt: true,
                         createdAt: true,
+                        introAudioDriveLink: true,
                         audioDriveLink: true,
                     },
                     orderBy: { createdAt: 'desc' },
