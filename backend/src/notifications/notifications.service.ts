@@ -16,7 +16,7 @@ export class NotificationsService {
     }
 
     private getFrom(): { email: string; name: string } {
-        const raw = process.env.SMTP_FROM || 'support@pollyolly.com';
+        const raw = process.env.SMTP_FROM || 'hiring@brightchamps.store';
         const match = raw.match(/"?([^"<]*)"?\s*<([^>]+)>/);
         if (match) {
             return { name: match[1].trim(), email: match[2].trim() };

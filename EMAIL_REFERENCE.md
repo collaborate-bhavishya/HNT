@@ -1,7 +1,7 @@
 # Email Notifications Reference
 
 All emails are sent via **SendGrid** from `notifications.service.ts`.
-Sender: `SMTP_FROM` env var (default: `support@pollyolly.com` / "Hiring Team")
+Sender: `SMTP_FROM` env var → `"BrightChamps Hiring Team" <hiring@brightchamps.store>`
 
 ---
 
