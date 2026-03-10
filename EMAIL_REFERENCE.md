@@ -51,8 +51,8 @@ Sender: `SMTP_FROM` env var (default: `support@pollyolly.com` / "Hiring Team")
 | **Trigger** | Admin changes candidate status to `SELECTED` |
 | **Where** | `applications.service.ts` → `updateCandidateStatus()` |
 | **Recipient** | Candidate email |
-| **Subject** | `Congratulations! You have been selected` |
-| **Body** | Congratulates the candidate, tells them to wait for next steps, team will connect shortly |
+| **Subject** | `Congratulations! Welcome to {Company}` |
+| **Body** | "Congratulations! 🎉 Your profile has been selected for the next round. Please wait for the next steps — our team will connect with you shortly with further details." |
 
 ## 3b. Final Rejection Email (REJECTED_FINAL)
 
@@ -62,7 +62,7 @@ Sender: `SMTP_FROM` env var (default: `support@pollyolly.com` / "Hiring Team")
 | **Where** | `applications.service.ts` → `updateCandidateStatus()` |
 | **Recipient** | Candidate email |
 | **Subject** | `Update on your Teaching Application` |
-| **Body** | Thanks for their effort, unfortunately not moving forward, wishes best in future endeavours |
+| **Body** | "Thank you for taking the time and effort to apply. We truly appreciate your interest. Unfortunately, we will not be moving forward with your application at this time. We wish you the very best in your future endeavors." |
 
 ---
 

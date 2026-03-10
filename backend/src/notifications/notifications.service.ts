@@ -114,43 +114,32 @@ export class NotificationsService {
     async sendFinalDecisionEmail(email: string, status: string) {
         if (status === 'SELECTED') {
             const body = `
-              <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6">Dear Applicant,</p>
-              <div style="margin:0 0 20px;padding:20px;background-color:#ecfdf5;border-radius:8px;border-left:4px solid #10b981;text-align:center">
-                <p style="margin:0;color:#065f46;font-size:18px;font-weight:700">🎉 Congratulations — You've been selected!</p>
+              <div style="margin:0 0 24px;padding:24px;background-color:#ecfdf5;border-radius:8px;border-left:4px solid #10b981;text-align:center">
+                <p style="margin:0;color:#065f46;font-size:20px;font-weight:700">Congratulations! 🎉</p>
               </div>
-              <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">We are delighted to inform you that after a thorough evaluation of your application and assessment, you have been <strong>selected to join our teaching team</strong> at ${this.companyName}.</p>
-              <div style="margin:24px 0;padding:20px;background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
-                <p style="margin:0 0 8px;color:#374151;font-size:14px;font-weight:600">What happens next:</p>
-                <ul style="margin:0;padding:0 0 0 18px;color:#374151;font-size:14px;line-height:1.8">
-                  <li>A member of our team will reach out to you within 2–3 business days</li>
-                  <li>You'll receive details about onboarding, training schedule, and next steps</li>
-                  <li>Please keep an eye on your email and phone for our communication</li>
-                </ul>
-              </div>
-              <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">We were truly impressed by your profile and look forward to having you on board. Welcome to the team!</p>
+              <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Your profile has been selected for the next round.</p>
+              <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Please wait for the next steps — our team will connect with you shortly with further details.</p>
               <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Warm regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
 
             await this.sendMail({
                 from: this.getFrom(),
                 to: email,
                 subject: `Congratulations! Welcome to ${this.companyName}`,
-                text: `Congratulations! You have been selected to join the ${this.companyName} teaching team. A member of our team will reach out within 2–3 business days with onboarding details. Welcome aboard! — ${this.companyName} Hiring Team`,
+                text: `Congratulations! 🎉 Your profile has been selected for the next round. Please wait for the next steps — our team will connect with you shortly with further details. — ${this.companyName} Hiring Team`,
                 html: this.wrapInTemplate(body),
             });
         } else {
             const body = `
-              <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6">Dear Applicant,</p>
-              <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Thank you for your time and effort throughout the application and assessment process at <strong>${this.companyName}</strong>. We sincerely appreciate the dedication you showed.</p>
-              <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">After a thorough review, we regret to inform you that we will not be moving forward with your application at this time. Please know that this was a competitive process and this decision does not diminish the value of your skills and experience.</p>
-              <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">We would love to stay connected and encourage you to apply again as new roles open up in the future.</p>
-              <p style="margin:0;color:#374151;font-size:15px;line-height:1.6">We wish you continued success in all your professional endeavours.</p>
+              <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Thank you for taking the time and effort to apply. We truly appreciate your interest.</p>
+              <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Unfortunately, we will not be moving forward with your application at this time.</p>
+              <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">We wish you the very best in your future endeavors.</p>
               <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Kind regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
 
             await this.sendMail({
                 from: this.getFrom(),
                 to: email,
                 subject: `Application Update — ${this.companyName} Teaching Position`,
-                text: `Dear Applicant, Thank you for your effort throughout the application process at ${this.companyName}. After thorough review, we will not be moving forward at this time. We encourage you to apply again in the future. Kind regards, ${this.companyName} Hiring Team`,
+                text: `Thank you for taking the time and effort to apply. We truly appreciate your interest. Unfortunately, we will not be moving forward with your application at this time. We wish you the very best in your future endeavors. — ${this.companyName} Hiring Team`,
                 html: this.wrapInTemplate(body),
             });
         }
