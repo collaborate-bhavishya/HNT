@@ -647,7 +647,7 @@ export default function AdminDashboard() {
                                             </div>
                                         ))}
 
-                                        {!['SELECTED', 'REJECTED_FINAL'].includes(selectedCandidate.status) && (
+                                        {['AUDIO_PROCESSING', 'MANUAL_REVIEW', 'AUDIO_FAILED'].includes(selectedCandidate.status) && (
                                             <div className="border border-gray-200 bg-white p-4 rounded-xl space-y-3">
                                                 <p className="text-xs text-gray-500">Based on the candidate's communication skills, make your decision:</p>
                                                 <div className="flex gap-3">
@@ -672,8 +672,8 @@ export default function AdminDashboard() {
                                     </div>
                                 )}
 
-                                {/* Admin Actions – show for all non-final statuses */}
-                                {!['SELECTED', 'REJECTED_FINAL'].includes(selectedCandidate.status) && (
+                                {/* Admin Actions – show only for candidates who cleared Stage 1 + MCQ */}
+                                {['AUDIO_PROCESSING', 'MANUAL_REVIEW', 'AUDIO_FAILED'].includes(selectedCandidate.status) && (
                                     <div className={cn(
                                         "border p-4 rounded-xl space-y-3",
                                         selectedCandidate.status === 'MANUAL_REVIEW' ? "bg-yellow-50 border-yellow-200" : "bg-gray-50 border-gray-200"
@@ -699,17 +699,23 @@ export default function AdminDashboard() {
                                     </div>
                                 )}
 
-                                {/* Final status badge */}
+                                {/* Status badge — view-only for final decisions */}
                                 {selectedCandidate.status === 'SELECTED' && (
                                     <div className="bg-green-50 border border-green-200 p-4 rounded-xl text-center">
                                         <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                                        <p className="text-green-800 font-bold">Candidate Selected</p>
+                                        <p className="text-green-800 font-bold">Final Status: Selected</p>
                                     </div>
                                 )}
                                 {selectedCandidate.status === 'REJECTED_FINAL' && (
                                     <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center">
                                         <XCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-                                        <p className="text-red-800 font-bold">Candidate Rejected</p>
+                                        <p className="text-red-800 font-bold">Final Status: Rejected</p>
+                                    </div>
+                                )}
+                                {selectedCandidate.status === 'REJECTED_FORM' && (
+                                    <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center">
+                                        <XCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                                        <p className="text-red-700 font-bold">Rejected at Application Stage</p>
                                     </div>
                                 )}
                             </CardContent>
