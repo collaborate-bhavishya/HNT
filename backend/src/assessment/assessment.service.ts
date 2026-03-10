@@ -232,23 +232,28 @@ export class AssessmentService {
                 mcqScore = Math.round((mcqCorrect / storedQuestions.length) * 100);
             }
 
+            // Always upload audio files regardless of MCQ score
+            let audioDriveLink: string | null = null;
+            let introAudioDriveLink: string | null = null;
+            let audioFilePath: string | null = null;
+
+            try {
+                if (teachingFile?.buffer) {
+                    const result = await this.uploadAudioFile(teachingFile, 'teaching', assessment.id);
+                    audioDriveLink = result.link;
+                    audioFilePath = result.localPath;
+                }
+
+                if (introFile?.buffer) {
+                    const result = await this.uploadAudioFile(introFile, 'intro', assessment.id);
+                    introAudioDriveLink = result.link;
+                }
+            } catch (uploadErr) {
+                this.logger.error('Error uploading audio files:', uploadErr);
+            }
+
             if (mcqScore >= 60) {
                 try {
-                    let audioDriveLink: string | null = null;
-                    let introAudioDriveLink: string | null = null;
-                    let audioFilePath: string | null = null;
-
-                    if (teachingFile?.buffer) {
-                        const result = await this.uploadAudioFile(teachingFile, 'teaching', assessment.id);
-                        audioDriveLink = result.link;
-                        audioFilePath = result.localPath;
-                    }
-
-                    if (introFile?.buffer) {
-                        const result = await this.uploadAudioFile(introFile, 'intro', assessment.id);
-                        introAudioDriveLink = result.link;
-                    }
-
                     await this.prisma.assessment.update({
                         where: { id: assessment.id },
                         data: {
@@ -282,6 +287,8 @@ export class AssessmentService {
                     where: { id: assessment.id },
                     data: {
                         mcqScore,
+                        audioDriveLink,
+                        introAudioDriveLink,
                         status: 'COMPLETED',
                         completedAt: new Date(),
                     },
