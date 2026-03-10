@@ -566,50 +566,28 @@ export default function AdminDashboard() {
                                     )}
                                 </div>
 
-                                {/* Assessment Results */}
+                                {/* MCQ Assessment */}
                                 {selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (
-                                    <div className="space-y-4">
-                                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Assessment Results</h4>
+                                    <div className="space-y-3">
+                                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">MCQ Assessment</h4>
                                         {selectedCandidate.assessments.map((a: Assessment) => (
-                                            <div key={a.id} className="space-y-3">
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="bg-white border text-center p-3 rounded-xl shadow-sm">
-                                                        <div className="text-2xl font-bold text-gray-900">{a.mcqScore ?? '—'}%</div>
-                                                        <div className="text-xs text-gray-500 mt-1">MCQ Score</div>
+                                            <div key={a.id} className="bg-white border rounded-xl overflow-hidden">
+                                                <div className="grid grid-cols-2 divide-x">
+                                                    <div className="text-center p-4">
+                                                        <div className={cn("text-2xl font-bold", (a.mcqScore ?? 0) >= 60 ? "text-green-600" : "text-red-600")}>{a.mcqScore ?? '—'}%</div>
+                                                        <div className="text-xs text-gray-500 mt-1">Score</div>
                                                     </div>
-                                                    {a.topic && (
-                                                        <div className="bg-white border text-center p-3 rounded-xl shadow-sm flex flex-col items-center justify-center">
-                                                            <div className="text-lg font-bold text-gray-900">{a.topic}</div>
-                                                            <div className="text-xs text-gray-500 mt-1">Topic</div>
-                                                        </div>
-                                                    )}
+                                                    <div className="text-center p-4">
+                                                        <div className="text-lg font-bold text-gray-900">{a.topic || '—'}</div>
+                                                        <div className="text-xs text-gray-500 mt-1">Topic</div>
+                                                    </div>
                                                 </div>
-
-                                                {/* Audio Recordings */}
-                                                {a.introAudioDriveLink && (
-                                                    <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-lg flex flex-col gap-2">
-                                                        <span className="text-indigo-700 text-xs font-semibold">Intro: Tell Me About Yourself</span>
-                                                        <audio controls className="w-full h-8" src={a.introAudioDriveLink.startsWith('http://localhost') ? a.introAudioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.introAudioDriveLink}>
-                                                            Your browser does not support the audio element.
-                                                        </audio>
-                                                    </div>
-                                                )}
-                                                {a.audioDriveLink && (
-                                                    <div className="bg-purple-50 border border-purple-100 p-3 rounded-lg flex flex-col gap-2">
-                                                        <span className="text-purple-700 text-xs font-semibold">Teaching Demo Recording</span>
-                                                        <audio controls className="w-full h-8" src={a.audioDriveLink.startsWith('http://localhost') ? a.audioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.audioDriveLink}>
-                                                            Your browser does not support the audio element.
-                                                        </audio>
-                                                    </div>
-                                                )}
-
-                                                {/* MCQ Questions & Answers */}
                                                 {a.mcqQuestions && a.mcqQuestions.length > 0 && (
-                                                    <details className="bg-gray-50 border rounded-lg">
-                                                        <summary className="px-3 py-2 text-xs font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 rounded-lg">
-                                                            View MCQ Questions ({a.mcqQuestions.length})
+                                                    <details className="border-t">
+                                                        <summary className="px-4 py-2.5 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50">
+                                                            View {a.mcqQuestions.length} Questions
                                                         </summary>
-                                                        <div className="px-3 pb-3 space-y-3 max-h-64 overflow-auto">
+                                                        <div className="px-4 pb-3 space-y-3 max-h-64 overflow-auto">
                                                             {a.mcqQuestions.map((q: McqQuestion, qi: number) => (
                                                                 <div key={q.id} className="text-xs border-t pt-2">
                                                                     <div className="flex gap-2">
@@ -641,6 +619,56 @@ export default function AdminDashboard() {
                                                 )}
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+
+                                {/* Communication Skills */}
+                                {selectedCandidate.assessments && selectedCandidate.assessments.some((a: Assessment) => a.introAudioDriveLink || a.audioDriveLink) && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Communication Skills</h4>
+                                        {selectedCandidate.assessments.map((a: Assessment) => (
+                                            <div key={`comm-${a.id}`} className="space-y-3">
+                                                {a.introAudioDriveLink && (
+                                                    <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl space-y-2">
+                                                        <div className="text-indigo-800 text-sm font-semibold">Q: Tell me about yourself</div>
+                                                        <audio controls className="w-full h-8" src={a.introAudioDriveLink.startsWith('http://localhost') ? a.introAudioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.introAudioDriveLink}>
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                    </div>
+                                                )}
+                                                {a.audioDriveLink && (
+                                                    <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl space-y-2">
+                                                        <div className="text-purple-800 text-sm font-semibold">Q: How would you explain the concept of variables in programming to a 10-year-old?</div>
+                                                        <audio controls className="w-full h-8" src={a.audioDriveLink.startsWith('http://localhost') ? a.audioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.audioDriveLink}>
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+
+                                        {!['SELECTED', 'REJECTED_FINAL'].includes(selectedCandidate.status) && (
+                                            <div className="border border-gray-200 bg-white p-4 rounded-xl space-y-3">
+                                                <p className="text-xs text-gray-500">Based on the candidate's communication skills, make your decision:</p>
+                                                <div className="flex gap-3">
+                                                    <Button
+                                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                                        onClick={() => updateStatus(selectedCandidate.id, 'SELECTED')}
+                                                    >
+                                                        <CheckCircle2 className="w-4 h-4 mr-1" />
+                                                        Select Candidate
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2"
+                                                        onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL')}
+                                                    >
+                                                        <XCircle className="w-4 h-4 mr-1" />
+                                                        Reject Candidate
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
