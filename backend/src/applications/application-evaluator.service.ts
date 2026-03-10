@@ -19,13 +19,11 @@ export class ApplicationEvaluatorService {
     }): EvaluationResult {
         // === INSTANT REJECTION RULES ===
 
-        // Rule 2: Must be available for 120 hours/month (operational requirement)
-        if (data.available120Hours === false) {
+        if (data.available120Hours !== true) {
             return { passed: false, score: 0, rejectionReason: 'Must be available for 120 hours/month' };
         }
 
-        // Rule 3: Must be open to weekends (most classes happen here)
-        if (data.openToWeekends === false) {
+        if (data.openToWeekends !== true) {
             return { passed: false, score: 0, rejectionReason: 'Must be open to working weekends' };
         }
 

@@ -155,7 +155,10 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
         formData.append('currentLocation', data.city);
         formData.append('motivation', motivationDetails);
 
-        // Append the file if it exists
+        formData.append('available120Hours', String(data.available120Hours));
+        formData.append('openToWeekends', String(data.openToWeekends));
+        formData.append('comfortableNightShifts', String(data.comfortableNightShifts));
+
         if (data.cvFile && data.cvFile.length > 0) {
             formData.append('cv', data.cvFile[0]);
         }
