@@ -63,12 +63,35 @@ export class NotificationsService {
     }
 
     async sendFinalDecisionEmail(email: string, status: string) {
-        await this.sendMail({
-            from: this.getFrom(),
-            to: email,
-            subject: `Final Decision on your Application: ${status}`,
-            text: `The final decision on your application is: ${status}.`,
-            html: `<p>The final decision on your application is: <strong>${status}</strong>.</p>`
-        });
+        if (status === 'SELECTED') {
+            await this.sendMail({
+                from: this.getFrom(),
+                to: email,
+                subject: 'Congratulations! You have been selected',
+                text: 'Congratulations! We are thrilled to inform you that you have been selected to join our teaching team. Please wait for the next steps — our team will connect with you shortly.',
+                html: [
+                    '<p>Congratulations!</p>',
+                    '<p>We are thrilled to inform you that you have been <strong>selected</strong> to join our teaching team.</p>',
+                    '<p>Please wait for the next steps — our team will connect with you shortly to discuss onboarding and scheduling.</p>',
+                    '<br/>',
+                    '<p>We look forward to working with you!</p>',
+                    '<p>Warm regards,<br/>The Hiring Team</p>',
+                ].join('')
+            });
+        } else {
+            await this.sendMail({
+                from: this.getFrom(),
+                to: email,
+                subject: 'Update on your Teaching Application',
+                text: 'Thank you for your time and effort throughout the application process. Unfortunately, after careful review, we will not be moving forward with your application at this time. We wish you the very best in your future endeavours.',
+                html: [
+                    '<p>Thank you for your time and effort throughout the application process.</p>',
+                    '<p>Unfortunately, after careful review, we will not be moving forward with your application at this time.</p>',
+                    '<p>We truly appreciate your interest and wish you the very best in your future endeavours.</p>',
+                    '<br/>',
+                    '<p>Kind regards,<br/>The Hiring Team</p>',
+                ].join('')
+            });
+        }
     }
 }
