@@ -8,12 +8,24 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model HiringManager {
+  id         String      @id @default(uuid())
+  name       String
+  email      String      @unique
+  password   String
+  phone      String?
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  candidates Candidate[]
+}
+
 model Candidate {
-  id              String       @id @default(uuid())
+  id              String          @id @default(uuid())
   firstName       String
   lastName        String
-  email           String       @unique
-  phone           String       @unique
+  email           String          @unique
+  phone           String          @unique
   position        String
   experience      Int
   expectedSalary  Float?
@@ -21,15 +33,17 @@ model Candidate {
   cvDriveLink     String?
   motivation      String?
   cvText          String?
-  status          String       @default("APPLIED")
+  status          String          @default("APPLIED")
   rejectionReason String?
   layer1Score     Float?
   aiMotivationScore Float?
   aiCvScore       Float?
   applicationScore Float?
   finalScore      Float?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  hiringManagerId String?
+  hiringManager   HiringManager?  @relation(fields: [hiringManagerId], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   assessments     Assessment[]
 }
 
@@ -48,6 +62,8 @@ model Assessment {
   topic       String?
   mcqQuestions Json?
   antiCheat   Json?
+  reminderCount   Int       @default(0)
+  lastReminderAt  DateTime?
   introAudioDriveLink String?
   audioDriveLink String?
   aiSpeechRawScores Json?

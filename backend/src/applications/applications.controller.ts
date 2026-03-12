@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Param, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Param, Query, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationDto } from './create-application.dto';
@@ -29,8 +29,8 @@ export class ApplicationsController {
     }
 
     @Get()
-    async getAllApplications() {
-        return this.applicationsService.getAllCandidates();
+    async getAllApplications(@Query('managerId') managerId?: string) {
+        return this.applicationsService.getAllCandidates(managerId);
     }
 
     @Get(':id')
@@ -41,5 +41,13 @@ export class ApplicationsController {
     @Post(':id/send-reminder')
     async sendReminder(@Param('id') id: string) {
         return this.applicationsService.sendAssessmentReminder(id);
+    }
+
+    @Post(':id/assign')
+    async assignHiringManager(
+        @Param('id') id: string,
+        @Body('hiringManagerId') hiringManagerId: string | null,
+    ) {
+        return this.applicationsService.assignHiringManager(id, hiringManagerId);
     }
 }

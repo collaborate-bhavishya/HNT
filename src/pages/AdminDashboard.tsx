@@ -31,6 +31,8 @@ interface Candidate {
     motivation: string | null;
     status: CandidateStatus;
     rejectionReason: string | null;
+    hiringManagerId: string | null;
+    hiringManager: { id: string; name: string } | null;
     createdAt: string;
     updatedAt: string;
     assessments?: Assessment[];
@@ -57,6 +59,8 @@ interface Assessment {
     startedAt: string | null;
     completedAt: string | null;
     expiresAt: string | null;
+    reminderCount: number;
+    lastReminderAt: string | null;
     createdAt: string;
 }
 
@@ -73,10 +77,28 @@ const statusConfig: Record<string, { label: string; color: string }> = {
     AUDIO_FAILED: { label: 'Audio Failed', color: 'bg-orange-50 text-orange-700 border-orange-200' },
 };
 
+interface HiringManagerInfo {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string | null;
+    isActive?: boolean;
+    createdAt?: string;
+    candidateCount?: number;
+}
+
+type UserRole = 'MASTER_ADMIN' | 'HIRING_MANAGER';
+
 export default function AdminDashboard() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [adminPasswordInput, setAdminPasswordInput] = useState('');
-    const [adminPasswordError, setAdminPasswordError] = useState('');
+    const [loginEmail, setLoginEmail] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [loginError, setLoginError] = useState('');
+    const [loginLoading, setLoginLoading] = useState(false);
+
+    const [userRole, setUserRole] = useState<UserRole | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
+    const [userName, setUserName] = useState('');
 
     const [isQuestionBankAuthenticated, setIsQuestionBankAuthenticated] = useState(false);
     const [qbPasswordInput, setQbPasswordInput] = useState('');
@@ -88,7 +110,15 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
-    const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS'>('CANDIDATES');
+    const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS' | 'HIRING_MANAGERS'>('CANDIDATES');
+
+    const [hiringManagers, setHiringManagers] = useState<HiringManagerInfo[]>([]);
+    const [activeManagers, setActiveManagers] = useState<HiringManagerInfo[]>([]);
+    const [hmForm, setHmForm] = useState({ name: '', email: '', password: '', phone: '' });
+    const [editingHm, setEditingHm] = useState<string | null>(null);
+    const [hmMsg, setHmMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    const isMasterAdmin = userRole === 'MASTER_ADMIN';
 
     const [sendingReminder, setSendingReminder] = useState(false);
     const [rejectionComment, setRejectionComment] = useState('');
@@ -101,7 +131,10 @@ export default function AdminDashboard() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`${API_BASE}/api/applications`);
+            const url = userRole === 'HIRING_MANAGER' && userId
+                ? `${API_BASE}/api/applications?managerId=${userId}`
+                : `${API_BASE}/api/applications`;
+            const res = await fetch(url);
             if (!res.ok) throw new Error(`API returned ${res.status}`);
             const data = await res.json();
             setCandidates(data);
@@ -110,6 +143,66 @@ export default function AdminDashboard() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const fetchHiringManagers = async () => {
+        try {
+            const [allRes, activeRes] = await Promise.all([
+                fetch(`${API_BASE}/api/hiring-managers`),
+                fetch(`${API_BASE}/api/hiring-managers/active`),
+            ]);
+            if (allRes.ok) setHiringManagers(await allRes.json());
+            if (activeRes.ok) setActiveManagers(await activeRes.json());
+        } catch {}
+    };
+
+    const assignManager = async (candidateId: string, hiringManagerId: string | null) => {
+        try {
+            const res = await fetch(`${API_BASE}/api/applications/${candidateId}/assign`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hiringManagerId }),
+            });
+            if (res.ok) {
+                const updated = await res.json();
+                setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, hiringManagerId: updated.hiringManagerId, hiringManager: updated.hiringManager } : c));
+                if (selectedCandidate?.id === candidateId) {
+                    setSelectedCandidate(prev => prev ? { ...prev, hiringManagerId: updated.hiringManagerId, hiringManager: updated.hiringManager } : prev);
+                }
+            }
+        } catch {}
+    };
+
+    const createOrUpdateHm = async () => {
+        setHmMsg(null);
+        try {
+            const url = editingHm
+                ? `${API_BASE}/api/hiring-managers/${editingHm}`
+                : `${API_BASE}/api/hiring-managers`;
+            const method = editingHm ? 'PUT' : 'POST';
+            const body: any = { name: hmForm.name, email: hmForm.email, phone: hmForm.phone || undefined };
+            if (hmForm.password) body.password = hmForm.password;
+
+            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || 'Failed');
+            }
+            setHmMsg({ type: 'success', text: editingHm ? 'Updated successfully' : 'Hiring manager created' });
+            setHmForm({ name: '', email: '', password: '', phone: '' });
+            setEditingHm(null);
+            fetchHiringManagers();
+        } catch (err: any) {
+            setHmMsg({ type: 'error', text: err.message });
+        }
+    };
+
+    const deactivateHm = async (id: string) => {
+        if (!confirm('Deactivate this hiring manager?')) return;
+        try {
+            await fetch(`${API_BASE}/api/hiring-managers/${id}`, { method: 'DELETE' });
+            fetchHiringManagers();
+        } catch {}
     };
 
     const fetchCandidateDetail = async (id: string) => {
@@ -149,7 +242,13 @@ export default function AdminDashboard() {
         try {
             const res = await fetch(`${API_BASE}/api/applications/${id}/send-reminder`, { method: 'POST' });
             if (res.ok) {
+                const data = await res.json();
                 alert('Reminder sent successfully!');
+                fetchCandidates();
+                if (selectedCandidate?.id === id) {
+                    const detailRes = await fetch(`${API_BASE}/api/applications/${id}`);
+                    if (detailRes.ok) setSelectedCandidate(await detailRes.json());
+                }
             } else {
                 const data = await res.json();
                 alert(`Failed: ${data.message || 'Unknown error'}`);
@@ -202,8 +301,11 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
-        fetchCandidates();
-    }, []);
+        if (isAuthenticated) {
+            fetchCandidates();
+            if (isMasterAdmin) fetchHiringManagers();
+        }
+    }, [isAuthenticated]);
 
     const filteredCandidates = candidates.filter(c => {
         const matchesSearch =
@@ -222,12 +324,25 @@ export default function AdminDashboard() {
     const isRejected = (status: string) => ['REJECTED', 'REJECTED_FORM', 'REJECTED_FINAL'].includes(status);
     const isSuccess = (status: string) => ['SELECTED'].includes(status);
 
-    const handleAdminLogin = () => {
-        if (adminPasswordInput === 'admin@brightchamps') {
+    const handleAdminLogin = async () => {
+        setLoginLoading(true);
+        setLoginError('');
+        try {
+            const res = await fetch(`${API_BASE}/api/admin/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Invalid credentials');
+            setUserRole(data.role);
+            setUserId(data.id || null);
+            setUserName(data.name);
             setIsAuthenticated(true);
-            setAdminPasswordError('');
-        } else {
-            setAdminPasswordError('Incorrect password');
+        } catch (err: any) {
+            setLoginError(err.message || 'Login failed');
+        } finally {
+            setLoginLoading(false);
         }
     };
 
@@ -254,19 +369,27 @@ export default function AdminDashboard() {
                     <div className="space-y-5">
                         <div className="space-y-2">
                             <Input
-                                type="password"
-                                placeholder="Admin Password"
-                                value={adminPasswordInput}
-                                onChange={e => setAdminPasswordInput(e.target.value)}
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter') handleAdminLogin();
-                                }}
+                                type="email"
+                                placeholder="Email Address"
+                                value={loginEmail}
+                                onChange={e => setLoginEmail(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') handleAdminLogin(); }}
                                 className="h-12 bg-gray-50/50"
                             />
-                            {adminPasswordError && <p className="text-red-500 text-sm font-medium pl-1">{adminPasswordError}</p>}
                         </div>
-                        <Button className="w-full h-12 text-lg bg-primary-600 hover:bg-primary-700 shadow-md transition-all" onClick={handleAdminLogin}>
-                            Sign In
+                        <div className="space-y-2">
+                            <Input
+                                type="password"
+                                placeholder="Password"
+                                value={loginPassword}
+                                onChange={e => setLoginPassword(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') handleAdminLogin(); }}
+                                className="h-12 bg-gray-50/50"
+                            />
+                            {loginError && <p className="text-red-500 text-sm font-medium pl-1">{loginError}</p>}
+                        </div>
+                        <Button className="w-full h-12 text-lg bg-primary-600 hover:bg-primary-700 shadow-md transition-all" onClick={handleAdminLogin} disabled={loginLoading}>
+                            {loginLoading ? 'Signing in...' : 'Sign In'}
                         </Button>
                     </div>
                 </Card>
@@ -280,7 +403,7 @@ export default function AdminDashboard() {
             <div className="w-64 bg-white border-r hidden md:flex flex-col">
                 <div className="p-6 border-b">
                     <h1 className="text-xl font-bold text-gray-900">EdTech Admin</h1>
-                    <p className="text-xs text-gray-500 mt-1">Teacher Hiring Pipeline</p>
+                    <p className="text-xs text-gray-500 mt-1">{userName} · {userRole === 'MASTER_ADMIN' ? 'Master Admin' : 'Hiring Manager'}</p>
                 </div>
                 <nav className="p-4 space-y-1 flex-1">
                     <Button
@@ -289,17 +412,30 @@ export default function AdminDashboard() {
                         onClick={() => setActiveTab('CANDIDATES')}
                     >
                         <User className="w-5 h-5" />
-                        All Candidates
+                        {isMasterAdmin ? 'All Candidates' : 'My Candidates'}
                         <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{candidates.length}</span>
                     </Button>
-                    <Button
-                        variant="ghost"
-                        className={cn("w-full justify-start gap-3", activeTab === 'QUESTIONS' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
-                        onClick={() => setActiveTab('QUESTIONS')}
-                    >
-                        <Database className="w-5 h-5" />
-                        Question Bank
-                    </Button>
+                    {isMasterAdmin && (
+                        <Button
+                            variant="ghost"
+                            className={cn("w-full justify-start gap-3", activeTab === 'QUESTIONS' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
+                            onClick={() => setActiveTab('QUESTIONS')}
+                        >
+                            <Database className="w-5 h-5" />
+                            Question Bank
+                        </Button>
+                    )}
+                    {isMasterAdmin && (
+                        <Button
+                            variant="ghost"
+                            className={cn("w-full justify-start gap-3", activeTab === 'HIRING_MANAGERS' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
+                            onClick={() => { setActiveTab('HIRING_MANAGERS'); fetchHiringManagers(); }}
+                        >
+                            <User className="w-5 h-5" />
+                            Hiring Managers
+                            <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{hiringManagers.length}</span>
+                        </Button>
+                    )}
 
                     <div className="h-4" />
                     <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Candidate Filters</div>
@@ -328,10 +464,13 @@ export default function AdminDashboard() {
                         </>
                     )}
                 </nav>
-                <div className="p-4 border-t">
+                <div className="p-4 border-t space-y-2">
                     <Button variant="outline" className="w-full gap-2" onClick={fetchCandidates}>
                         <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
                         Refresh
+                    </Button>
+                    <Button variant="ghost" className="w-full text-gray-500 text-xs" onClick={() => { setIsAuthenticated(false); setUserRole(null); setUserId(null); setLoginEmail(''); setLoginPassword(''); setCandidates([]); setActiveTab('CANDIDATES'); }}>
+                        Sign Out
                     </Button>
                 </div>
             </div>
@@ -341,10 +480,10 @@ export default function AdminDashboard() {
                 <header className="bg-white border-b px-8 py-4 flex justify-between items-center text-sans">
                     <div>
                         <h2 className="text-2xl font-semibold text-gray-800">
-                            {activeTab === 'CANDIDATES' ? 'Candidates' : 'Question Bank'}
+                            {activeTab === 'CANDIDATES' ? 'Candidates' : activeTab === 'HIRING_MANAGERS' ? 'Hiring Managers' : 'Question Bank'}
                         </h2>
                         <p className="text-sm text-gray-500">
-                            {activeTab === 'CANDIDATES' ? `${filteredCandidates.length} applicants in view` : 'Manage your technical question pool'}
+                            {activeTab === 'CANDIDATES' ? `${filteredCandidates.length} applicants in view` : activeTab === 'HIRING_MANAGERS' ? 'Manage your hiring team' : 'Manage your technical question pool'}
                         </p>
                     </div>
                     {activeTab === 'CANDIDATES' && (
@@ -385,6 +524,8 @@ export default function AdminDashboard() {
                                                 <th className="px-6 py-4">Position</th>
                                                 <th className="px-6 py-4">Experience</th>
                                                 <th className="px-6 py-4">Status</th>
+                                                {isMasterAdmin && <th className="px-6 py-4">Assigned To</th>}
+                                                <th className="px-6 py-4">Reminder</th>
                                                 <th className="px-6 py-4">Applied</th>
                                             </tr>
                                         </thead>
@@ -411,6 +552,24 @@ export default function AdminDashboard() {
                                                                 {sc.label}
                                                             </span>
                                                         </td>
+                                                        {isMasterAdmin && (
+                                                            <td className="px-6 py-4 text-gray-500 text-xs">
+                                                                {candidate.hiringManager?.name || <span className="text-gray-300">Unassigned</span>}
+                                                            </td>
+                                                        )}
+                                                        <td className="px-6 py-4 text-xs">
+                                                            {candidate.status === 'TESTING' && candidate.assessments?.[0] ? (() => {
+                                                                const a = candidate.assessments[0];
+                                                                const count = a.reminderCount || 0;
+                                                                return count > 0 ? (
+                                                                    <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-medium">
+                                                                        <Mail className="w-3 h-3" /> {count}x · {toIST(a.lastReminderAt!, true)}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-gray-300">No reminder</span>
+                                                                );
+                                                            })() : <span className="text-gray-200">—</span>}
+                                                        </td>
                                                         <td className="px-6 py-4 text-gray-500 text-xs">{toIST(candidate.createdAt)}</td>
                                                     </tr>
                                                 );
@@ -426,6 +585,49 @@ export default function AdminDashboard() {
                                     </table>
                                 </div>
                             )}
+                        </Card>
+                    ) : activeTab === 'HIRING_MANAGERS' && isMasterAdmin ? (
+                        <Card className="flex-1 flex flex-col bg-white p-8 space-y-8">
+                            <div className="max-w-2xl space-y-6">
+                                <h3 className="text-xl font-bold text-gray-900">{editingHm ? 'Edit Hiring Manager' : 'Add New Hiring Manager'}</h3>
+                                {hmMsg && <div className={`text-sm px-3 py-2 rounded ${hmMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{hmMsg.text}</div>}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Input placeholder="Full Name" value={hmForm.name} onChange={e => setHmForm(f => ({ ...f, name: e.target.value }))} />
+                                    <Input placeholder="Email" type="email" value={hmForm.email} onChange={e => setHmForm(f => ({ ...f, email: e.target.value }))} />
+                                    <Input placeholder={editingHm ? 'New Password (leave blank to keep)' : 'Password'} type="password" value={hmForm.password} onChange={e => setHmForm(f => ({ ...f, password: e.target.value }))} />
+                                    <Input placeholder="Phone (optional)" value={hmForm.phone} onChange={e => setHmForm(f => ({ ...f, phone: e.target.value }))} />
+                                </div>
+                                <div className="flex gap-3">
+                                    <Button onClick={createOrUpdateHm} className="bg-primary-600 hover:bg-primary-700">{editingHm ? 'Update' : 'Add Manager'}</Button>
+                                    {editingHm && <Button variant="outline" onClick={() => { setEditingHm(null); setHmForm({ name: '', email: '', password: '', phone: '' }); }}>Cancel</Button>}
+                                </div>
+                            </div>
+                            <div className="border-t pt-6">
+                                <h3 className="text-lg font-bold text-gray-900 mb-4">All Hiring Managers</h3>
+                                <table className="w-full text-sm">
+                                    <thead><tr className="text-left text-gray-500 bg-gray-50"><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Phone</th><th className="px-4 py-3">Candidates</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead>
+                                    <tbody>
+                                        {hiringManagers.map(hm => (
+                                            <tr key={hm.id} className="border-t hover:bg-gray-50 transition-colors">
+                                                <td className="px-4 py-3 font-medium">{hm.name}</td>
+                                                <td className="px-4 py-3 text-gray-600">{hm.email}</td>
+                                                <td className="px-4 py-3 text-gray-600">{hm.phone || '—'}</td>
+                                                <td className="px-4 py-3 text-center">{hm.candidateCount ?? 0}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${hm.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                        {hm.isActive ? 'Active' : 'Inactive'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 flex gap-2">
+                                                    <Button size="sm" variant="outline" onClick={() => { setEditingHm(hm.id); setHmForm({ name: hm.name, email: hm.email, password: '', phone: hm.phone || '' }); }}>Edit</Button>
+                                                    {hm.isActive && <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => deactivateHm(hm.id)}>Deactivate</Button>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {hiringManagers.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No hiring managers yet</td></tr>}
+                                    </tbody>
+                                </table>
+                            </div>
                         </Card>
                     ) : !isQuestionBankAuthenticated ? (
                         <Card className="flex-1 flex flex-col items-center justify-center bg-white p-8">
@@ -554,6 +756,21 @@ export default function AdminDashboard() {
                                         {selectedCandidate.experience}y exp
                                     </span>
                                 </div>
+                                {isMasterAdmin && (
+                                    <div className="mt-3 flex items-center gap-2">
+                                        <span className="text-xs text-gray-500 font-medium">Assign to:</span>
+                                        <select
+                                            className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
+                                            value={selectedCandidate.hiringManagerId || ''}
+                                            onChange={e => assignManager(selectedCandidate.id, e.target.value || null)}
+                                        >
+                                            <option value="">Unassigned</option>
+                                            {activeManagers.map(m => (
+                                                <option key={m.id} value={m.id}>{m.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </CardHeader>
                             <CardContent className="p-6 space-y-6 flex-1 overflow-auto">
                                 {/* Application Info */}
@@ -634,6 +851,19 @@ export default function AdminDashboard() {
                                                         <div className="col-span-2">
                                                             <span className="text-gray-500">Started:</span>{' '}
                                                             <span className="font-medium">{toIST(a.startedAt!, true)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-3 text-xs bg-white/60 rounded-lg px-3 py-2 border border-gray-100">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Mail className="w-3.5 h-3.5 text-gray-400" />
+                                                        <span className="text-gray-500">Reminders sent:</span>
+                                                        <span className="font-bold text-gray-800">{a.reminderCount || 0}</span>
+                                                    </div>
+                                                    {a.lastReminderAt && (
+                                                        <div className="border-l pl-3">
+                                                            <span className="text-gray-500">Last:</span>{' '}
+                                                            <span className="font-medium text-gray-700">{toIST(a.lastReminderAt, true)}</span>
                                                         </div>
                                                     )}
                                                 </div>

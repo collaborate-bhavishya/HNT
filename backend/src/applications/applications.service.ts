@@ -168,8 +168,18 @@ export class ApplicationsService {
         };
     }
 
-    async getAllCandidates() {
+    async getAllCandidates(managerId?: string) {
+        const where = managerId ? { hiringManagerId: managerId } : {};
         return this.prisma.candidate.findMany({
+            where,
+            include: {
+                hiringManager: { select: { id: true, name: true } },
+                assessments: {
+                    select: { reminderCount: true, lastReminderAt: true, startedAt: true, expiresAt: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                },
+            },
             orderBy: { createdAt: 'desc' },
         });
     }
@@ -178,6 +188,7 @@ export class ApplicationsService {
         return this.prisma.candidate.findUnique({
             where: { id },
             include: {
+                hiringManager: { select: { id: true, name: true } },
                 assessments: {
                     select: {
                         id: true,
@@ -194,6 +205,8 @@ export class ApplicationsService {
                         completedAt: true,
                         expiresAt: true,
                         createdAt: true,
+                        reminderCount: true,
+                        lastReminderAt: true,
                         introAudioDriveLink: true,
                         audioDriveLink: true,
                     },
@@ -215,19 +228,33 @@ export class ApplicationsService {
         const assessment = candidate.assessments[0];
         if (!assessment) throw new Error('No assessment found');
 
+        const updateData: any = {
+            reminderCount: { increment: 1 },
+            lastReminderAt: new Date(),
+        };
+
         if (new Date() > assessment.expiresAt) {
-            // Extend expiry by another 72 hours and reset
-            await this.prisma.assessment.update({
-                where: { id: assessment.id },
-                data: { expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000) },
-            });
+            updateData.expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
         }
+
+        const updated = await this.prisma.assessment.update({
+            where: { id: assessment.id },
+            data: updateData,
+        });
 
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const link = `${frontendUrl}/assessment/${assessment.token}`;
         await this.notifications.sendAssessmentReminderEmail(candidate.email, link);
 
-        return { message: 'Reminder sent successfully' };
+        return { message: 'Reminder sent successfully', reminderCount: updated.reminderCount, lastReminderAt: updated.lastReminderAt };
+    }
+
+    async assignHiringManager(candidateId: string, hiringManagerId: string | null) {
+        return this.prisma.candidate.update({
+            where: { id: candidateId },
+            data: { hiringManagerId },
+            include: { hiringManager: { select: { id: true, name: true } } },
+        });
     }
 
     async updateCandidateStatus(id: string, status: string, comment?: string) {

@@ -9,6 +9,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { QuestionsModule } from './questions/questions.module';
+import { HiringManagersModule } from './hiring-managers/hiring-managers.module';
 
 const redisUrl = (process.env.REDIS_URL || 'redis://localhost:6379').replace(/["']/g, '');
 console.log(`[AppModule] Connecting to Redis: ${redisUrl.replace(/\/\/.*@/, '//***@')}`);
@@ -47,6 +48,7 @@ redisConnection.on('connect', () => console.log('[Redis] Connected successfully'
     AdminModule,
     NotificationsModule,
     QuestionsModule,
+    HiringManagersModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
