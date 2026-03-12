@@ -7,6 +7,15 @@ import { Input } from '../components/ui/Input';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+const toIST = (dateStr: string, includeTime = false) => {
+    const options: Intl.DateTimeFormatOptions = {
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit', month: 'short', year: 'numeric',
+        ...(includeTime && { hour: '2-digit', minute: '2-digit', hour12: true }),
+    };
+    return new Date(dateStr).toLocaleString('en-IN', options);
+};
+
 type CandidateStatus = 'APPLIED' | 'REJECTED' | 'AI_SCORING' | 'REJECTED_FORM' | 'TESTING' | 'AUDIO_PROCESSING' | 'SELECTED' | 'MANUAL_REVIEW' | 'REJECTED_FINAL' | 'AUDIO_FAILED';
 
 interface Candidate {
@@ -402,7 +411,7 @@ export default function AdminDashboard() {
                                                                 {sc.label}
                                                             </span>
                                                         </td>
-                                                        <td className="px-6 py-4 text-gray-500 text-xs">{new Date(candidate.createdAt).toLocaleDateString()}</td>
+                                                        <td className="px-6 py-4 text-gray-500 text-xs">{toIST(candidate.createdAt)}</td>
                                                     </tr>
                                                 );
                                             })}
@@ -615,16 +624,16 @@ export default function AdminDashboard() {
                                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                                     <div>
                                                         <span className="text-gray-500">Sent:</span>{' '}
-                                                        <span className="font-medium">{new Date(a.createdAt).toLocaleDateString()}</span>
+                                                        <span className="font-medium">{toIST(a.createdAt, true)}</span>
                                                     </div>
                                                     <div>
                                                         <span className="text-gray-500">Expires:</span>{' '}
-                                                        <span className="font-medium">{a.expiresAt ? new Date(a.expiresAt).toLocaleDateString() : '—'}</span>
+                                                        <span className="font-medium">{a.expiresAt ? toIST(a.expiresAt, true) : '—'}</span>
                                                     </div>
                                                     {a.startedAt && (
                                                         <div className="col-span-2">
                                                             <span className="text-gray-500">Started:</span>{' '}
-                                                            <span className="font-medium">{new Date(a.startedAt).toLocaleString()}</span>
+                                                            <span className="font-medium">{toIST(a.startedAt!, true)}</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -658,20 +667,12 @@ export default function AdminDashboard() {
                                         <div className="flex gap-3">
                                             <Button
                                                 variant="outline"
-                                                className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2 font-semibold"
+                                                className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2 font-semibold"
                                                 disabled={!rejectionComment.trim()}
                                                 onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL', rejectionComment.trim())}
                                             >
                                                 <XCircle className="w-4 h-4 mr-1" />
                                                 Reject Candidate
-                                            </Button>
-                                            <Button
-                                                className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold"
-                                                onClick={() => sendReminder(selectedCandidate.id)}
-                                                disabled={sendingReminder}
-                                            >
-                                                <Mail className="w-4 h-4 mr-1" />
-                                                {sendingReminder ? 'Sending...' : 'Resend Assessment Email'}
                                             </Button>
                                         </div>
                                         {!rejectionComment.trim() && (
