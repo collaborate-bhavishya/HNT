@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
-import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Send, Mail } from 'lucide-react';
+import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
