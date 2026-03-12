@@ -22,9 +22,10 @@ export class ApplicationsController {
     @Post(':id/status')
     async updateCandidateStatus(
         @Param('id') id: string,
-        @Body('status') status: string
+        @Body('status') status: string,
+        @Body('comment') comment?: string,
     ) {
-        return this.applicationsService.updateCandidateStatus(id, status);
+        return this.applicationsService.updateCandidateStatus(id, status, comment);
     }
 
     @Get()

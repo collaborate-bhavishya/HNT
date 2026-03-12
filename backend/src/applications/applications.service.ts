@@ -230,10 +230,14 @@ export class ApplicationsService {
         return { message: 'Reminder sent successfully' };
     }
 
-    async updateCandidateStatus(id: string, status: string) {
+    async updateCandidateStatus(id: string, status: string, comment?: string) {
+        const data: any = { status };
+        if (comment) {
+            data.rejectionReason = comment;
+        }
         const candidate = await this.prisma.candidate.update({
             where: { id },
-            data: { status }
+            data,
         });
 
         if (status === 'SELECTED' || status === 'REJECTED_FINAL') {

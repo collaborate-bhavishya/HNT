@@ -21,6 +21,7 @@ interface Candidate {
     cvDriveLink: string | null;
     motivation: string | null;
     status: CandidateStatus;
+    rejectionReason: string | null;
     createdAt: string;
     updatedAt: string;
     assessments?: Assessment[];
@@ -81,6 +82,7 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS'>('CANDIDATES');
 
     const [sendingReminder, setSendingReminder] = useState(false);
+    const [rejectionComment, setRejectionComment] = useState('');
 
     // Question management state
     const [uploading, setUploading] = useState(false);
@@ -114,19 +116,19 @@ export default function AdminDashboard() {
         }
     };
 
-    const updateStatus = async (id: string, newStatus: string) => {
+    const updateStatus = async (id: string, newStatus: string, comment?: string) => {
         try {
             const res = await fetch(`${API_BASE}/api/applications/${id}/status`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({ status: newStatus, comment })
             });
             if (res.ok) {
-                // Refresh local data
                 setCandidates(candidates.map(c => c.id === id ? { ...c, status: newStatus as CandidateStatus } : c));
                 if (selectedCandidate?.id === id) {
                     setSelectedCandidate({ ...selectedCandidate, status: newStatus as CandidateStatus });
                 }
+                setRejectionComment('');
             }
         } catch (err) {
             console.error('Failed to update status', err);
@@ -640,6 +642,44 @@ export default function AdminDashboard() {
                                     );
                                 })()}
 
+                                {/* Admin Actions for TESTING candidates */}
+                                {selectedCandidate.status === 'TESTING' && (
+                                    <div className="border border-orange-200 bg-orange-50 p-4 rounded-xl space-y-3">
+                                        <h4 className="text-sm font-semibold text-orange-800 uppercase tracking-wider">Admin Actions</h4>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-gray-700">Rejection Comment <span className="text-red-500">*</span></label>
+                                            <textarea
+                                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 min-h-[80px]"
+                                                placeholder="Mandatory: Provide reason for rejection..."
+                                                value={rejectionComment}
+                                                onChange={e => setRejectionComment(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <Button
+                                                variant="outline"
+                                                className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2 font-semibold"
+                                                disabled={!rejectionComment.trim()}
+                                                onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL', rejectionComment.trim())}
+                                            >
+                                                <XCircle className="w-4 h-4 mr-1" />
+                                                Reject Candidate
+                                            </Button>
+                                            <Button
+                                                className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold"
+                                                onClick={() => sendReminder(selectedCandidate.id)}
+                                                disabled={sendingReminder}
+                                            >
+                                                <Mail className="w-4 h-4 mr-1" />
+                                                {sendingReminder ? 'Sending...' : 'Resend Assessment Email'}
+                                            </Button>
+                                        </div>
+                                        {!rejectionComment.trim() && (
+                                            <p className="text-[11px] text-red-500">* Comment is required to reject a candidate</p>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* MCQ Assessment */}
                                 {selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (
                                     <div className="space-y-3">
@@ -781,15 +821,21 @@ export default function AdminDashboard() {
                                     </div>
                                 )}
                                 {selectedCandidate.status === 'REJECTED_FINAL' && (
-                                    <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center">
-                                        <XCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+                                    <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center space-y-2">
+                                        <XCircle className="w-8 h-8 text-red-500 mx-auto" />
                                         <p className="text-red-800 font-bold">Final Status: Rejected</p>
+                                        {selectedCandidate.rejectionReason && (
+                                            <p className="text-red-600 text-sm">Reason: {selectedCandidate.rejectionReason}</p>
+                                        )}
                                     </div>
                                 )}
                                 {selectedCandidate.status === 'REJECTED_FORM' && (
-                                    <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center">
-                                        <XCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                                    <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center space-y-2">
+                                        <XCircle className="w-8 h-8 text-red-400 mx-auto" />
                                         <p className="text-red-700 font-bold">Rejected at Application Stage</p>
+                                        {selectedCandidate.rejectionReason && (
+                                            <p className="text-red-600 text-sm">Reason: {selectedCandidate.rejectionReason}</p>
+                                        )}
                                     </div>
                                 )}
                             </CardContent>
