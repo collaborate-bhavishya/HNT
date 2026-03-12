@@ -34,9 +34,6 @@ export class AssessmentController {
     ) {
         const introFile = files?.introAudio?.[0];
         const teachingFile = files?.audio?.[0];
-        if (!teachingFile) {
-            throw new BadRequestException('Teaching audio file is required');
-        }
         return this.assessmentService.evaluateAssessment(token, payload, teachingFile, introFile);
     }
 }

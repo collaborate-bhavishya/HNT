@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Analytics } from '@vercel/analytics/react';
 import LandingPage from './pages/LandingPage';
 import ApplyPage from './pages/ApplyPage';
 import AssessmentPage from './pages/AssessmentPage';
@@ -25,6 +26,7 @@ function App() {
           <Route path="/admin" element={<AdminDashboard />} />
         </Routes>
       </BrowserRouter>
+      <Analytics />
     </QueryClientProvider>
   );
 }

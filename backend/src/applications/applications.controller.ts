@@ -36,4 +36,9 @@ export class ApplicationsController {
     async getCandidateById(@Param('id') id: string) {
         return this.applicationsService.getCandidateById(id);
     }
+
+    @Post(':id/send-reminder')
+    async sendReminder(@Param('id') id: string) {
+        return this.applicationsService.sendAssessmentReminder(id);
+    }
 }

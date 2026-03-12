@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
-import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2 } from 'lucide-react';
+import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Send, Mail } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -37,13 +37,16 @@ interface McqQuestion {
 
 interface Assessment {
     id: string;
+    token: string;
     status: string;
     topic: string | null;
     mcqScore: number | null;
     mcqQuestions: McqQuestion[] | null;
     introAudioDriveLink: string | null;
     audioDriveLink: string | null;
+    startedAt: string | null;
     completedAt: string | null;
+    expiresAt: string | null;
     createdAt: string;
 }
 
@@ -76,6 +79,8 @@ export default function AdminDashboard() {
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS'>('CANDIDATES');
+
+    const [sendingReminder, setSendingReminder] = useState(false);
 
     // Question management state
     const [uploading, setUploading] = useState(false);
@@ -125,6 +130,23 @@ export default function AdminDashboard() {
             }
         } catch (err) {
             console.error('Failed to update status', err);
+        }
+    };
+
+    const sendReminder = async (id: string) => {
+        setSendingReminder(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/applications/${id}/send-reminder`, { method: 'POST' });
+            if (res.ok) {
+                alert('Reminder sent successfully!');
+            } else {
+                const data = await res.json();
+                alert(`Failed: ${data.message || 'Unknown error'}`);
+            }
+        } catch (err) {
+            alert('Failed to send reminder');
+        } finally {
+            setSendingReminder(false);
         }
     };
 
@@ -565,6 +587,58 @@ export default function AdminDashboard() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Assessment Status for TESTING candidates */}
+                                {selectedCandidate.status === 'TESTING' && selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (() => {
+                                    const a = selectedCandidate.assessments[0];
+                                    const isExpired = a.expiresAt ? new Date() > new Date(a.expiresAt) : false;
+                                    const isStarted = !!a.startedAt;
+                                    const statusLabel = isExpired ? 'Expired' : isStarted ? 'In Progress' : 'Not Started';
+                                    const statusColor = isExpired ? 'text-red-600 bg-red-50 border-red-200' : isStarted ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-gray-600 bg-gray-50 border-gray-200';
+                                    const iconColor = isExpired ? 'text-red-500' : isStarted ? 'text-amber-500' : 'text-gray-400';
+
+                                    return (
+                                        <div className="space-y-3">
+                                            <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Assessment Status</h4>
+                                            <div className={cn("border rounded-xl p-4 space-y-3", statusColor)}>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock className={cn("w-5 h-5", iconColor)} />
+                                                        <span className="font-bold text-sm">{statusLabel}</span>
+                                                    </div>
+                                                    <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", statusColor)}>
+                                                        {a.status}
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                                    <div>
+                                                        <span className="text-gray-500">Sent:</span>{' '}
+                                                        <span className="font-medium">{new Date(a.createdAt).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-500">Expires:</span>{' '}
+                                                        <span className="font-medium">{a.expiresAt ? new Date(a.expiresAt).toLocaleDateString() : '—'}</span>
+                                                    </div>
+                                                    {a.startedAt && (
+                                                        <div className="col-span-2">
+                                                            <span className="text-gray-500">Started:</span>{' '}
+                                                            <span className="font-medium">{new Date(a.startedAt).toLocaleString()}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full gap-2 border-primary-200 text-primary-700 hover:bg-primary-50 font-semibold text-sm"
+                                                    onClick={() => sendReminder(selectedCandidate.id)}
+                                                    disabled={sendingReminder}
+                                                >
+                                                    <Mail className="w-4 h-4" />
+                                                    {sendingReminder ? 'Sending...' : isExpired ? 'Resend Link (extends 72hrs)' : 'Send Reminder'}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* MCQ Assessment */}
                                 {selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (

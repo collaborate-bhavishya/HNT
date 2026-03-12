@@ -78,7 +78,7 @@ export default function ApplyPage() {
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [assessmentToken, setAssessmentToken] = useState<string | null>(null);
-    const [countdown, setCountdown] = useState(5);
+    const [countdown, setCountdown] = useState(3);
 
     const {
         register,
@@ -220,11 +220,14 @@ Availability: 120hrs/mo (${data.available120Hours ? 'Yes' : 'No'}), Weekends (${
                         </div>
                     )}
 
-                    <div className={countdown === 0 && !assessmentToken ? "pt-4" : "py-4 border-y border-gray-100"}>
+                    <div className={countdown === 0 && !assessmentToken ? "pt-4" : "py-6 border-y border-gray-100"}>
                         {countdown > 0 ? (
-                            <p className="text-sm font-medium text-gray-500">
-                                Finalizing your status in <span className="text-primary-600 font-bold text-lg">{countdown}</span> seconds...
-                            </p>
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="w-24 h-24 rounded-full bg-primary-100 flex items-center justify-center animate-pulse">
+                                    <span className="text-5xl font-black text-primary-600">{countdown}</span>
+                                </div>
+                                <p className="text-base font-semibold text-gray-600">Finalizing your status...</p>
+                            </div>
                         ) : assessmentToken ? (
                             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700">
                                 <div className="bg-primary-50 p-4 rounded-xl border border-primary-100">

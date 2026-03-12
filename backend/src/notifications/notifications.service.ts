@@ -111,6 +111,28 @@ export class NotificationsService {
         });
     }
 
+    async sendAssessmentReminderEmail(email: string, link: string) {
+        const body = `
+          <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6">Dear Applicant,</p>
+          <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">This is a friendly reminder that your <strong>Technical Assessment</strong> for ${this.companyName} is still pending.</p>
+          <div style="margin:24px 0;padding:20px;background-color:#fef3c7;border-radius:8px;border-left:4px solid #f59e0b">
+            <p style="margin:0;color:#92400e;font-size:14px;font-weight:600">⏰ Your assessment link will expire soon. Please complete it at your earliest convenience.</p>
+          </div>
+          <div style="text-align:center;margin:28px 0">
+            <a href="${link}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.3px">Complete Assessment</a>
+          </div>
+          <p style="margin:0;color:#374151;font-size:15px;line-height:1.6">If you have any questions or face any issues, feel free to reach out to us.</p>
+          <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Best regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
+
+        await this.sendMail({
+            from: this.getFrom(),
+            to: email,
+            subject: `Reminder: Complete Your Assessment — ${this.companyName}`,
+            text: `Reminder: Your technical assessment for ${this.companyName} is still pending. Please complete it using this link: ${link}. — ${this.companyName} Hiring Team`,
+            html: this.wrapInTemplate(body),
+        });
+    }
+
     async sendFinalDecisionEmail(email: string, status: string) {
         if (status === 'SELECTED') {
             const body = `

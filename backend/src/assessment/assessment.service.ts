@@ -172,7 +172,7 @@ export class AssessmentService {
         return { link: link!, localPath };
     }
 
-    async evaluateAssessment(token: string, payload: any, teachingFile: Express.Multer.File, introFile?: Express.Multer.File) {
+    async evaluateAssessment(token: string, payload: any, teachingFile?: Express.Multer.File, introFile?: Express.Multer.File) {
         const assessment = await this.prisma.assessment.findUnique({
             where: { token },
         });
@@ -252,29 +252,35 @@ export class AssessmentService {
                 this.logger.error('Error uploading audio files:', uploadErr);
             }
 
+            const hasAudio = !!audioDriveLink;
+
             if (mcqScore >= 60) {
                 try {
+                    const nextStatus = hasAudio ? 'AUDIO_PROCESSING' : 'MANUAL_REVIEW';
+
                     await this.prisma.assessment.update({
                         where: { id: assessment.id },
                         data: {
                             mcqScore,
                             audioDriveLink,
                             introAudioDriveLink,
-                            status: 'AUDIO_PROCESSING',
+                            status: hasAudio ? 'AUDIO_PROCESSING' : 'COMPLETED',
                             completedAt: new Date(),
                         },
                     });
 
                     await this.prisma.candidate.update({
                         where: { id: assessment.candidateId },
-                        data: { status: 'AUDIO_PROCESSING' }
+                        data: { status: nextStatus }
                     });
 
-                    await this.audioQueue.add('process-audio', {
-                        assessmentId: assessment.id,
-                        audioFilePath,
-                        audioMimeType: teachingFile?.mimetype,
-                    });
+                    if (hasAudio) {
+                        await this.audioQueue.add('process-audio', {
+                            assessmentId: assessment.id,
+                            audioFilePath,
+                            audioMimeType: teachingFile?.mimetype,
+                        });
+                    }
 
                     await this.aiQueue.add('process-application-ai', { candidateId: assessment.candidateId });
                 } catch (queueError) {

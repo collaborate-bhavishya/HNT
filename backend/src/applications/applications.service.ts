@@ -181,6 +181,7 @@ export class ApplicationsService {
                 assessments: {
                     select: {
                         id: true,
+                        token: true,
                         status: true,
                         topic: true,
                         mcqScore: true,
@@ -189,7 +190,9 @@ export class ApplicationsService {
                         finalScore: true,
                         aiSpeechRawScores: true,
                         aiSpeechTranscript: true,
+                        startedAt: true,
                         completedAt: true,
+                        expiresAt: true,
                         createdAt: true,
                         introAudioDriveLink: true,
                         audioDriveLink: true,
@@ -198,6 +201,33 @@ export class ApplicationsService {
                 },
             },
         });
+    }
+
+    async sendAssessmentReminder(candidateId: string) {
+        const candidate = await this.prisma.candidate.findUnique({
+            where: { id: candidateId },
+            include: { assessments: { orderBy: { createdAt: 'desc' }, take: 1 } },
+        });
+
+        if (!candidate) throw new Error('Candidate not found');
+        if (candidate.status !== 'TESTING') throw new Error('Candidate is not in testing phase');
+
+        const assessment = candidate.assessments[0];
+        if (!assessment) throw new Error('No assessment found');
+
+        if (new Date() > assessment.expiresAt) {
+            // Extend expiry by another 72 hours and reset
+            await this.prisma.assessment.update({
+                where: { id: assessment.id },
+                data: { expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000) },
+            });
+        }
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const link = `${frontendUrl}/assessment/${assessment.token}`;
+        await this.notifications.sendAssessmentReminderEmail(candidate.email, link);
+
+        return { message: 'Reminder sent successfully' };
     }
 
     async updateCandidateStatus(id: string, status: string) {
