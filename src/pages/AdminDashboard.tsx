@@ -242,7 +242,7 @@ export default function AdminDashboard() {
         try {
             const res = await fetch(`${API_BASE}/api/applications/${id}/send-reminder`, { method: 'POST' });
             if (res.ok) {
-                const data = await res.json();
+                await res.json();
                 alert('Reminder sent successfully!');
                 fetchCandidates();
                 if (selectedCandidate?.id === id) {
