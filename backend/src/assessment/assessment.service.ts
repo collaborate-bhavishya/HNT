@@ -34,7 +34,7 @@ export class AssessmentService {
             where: { token },
             include: {
                 candidate: {
-                    select: { firstName: true, lastName: true },
+                    select: { firstName: true, lastName: true, position: true },
                 },
             },
         });
@@ -64,6 +64,7 @@ export class AssessmentService {
         return {
             message: 'Token verification successful',
             candidateName: `${assessment.candidate.firstName} ${assessment.candidate.lastName}`,
+            position: assessment.candidate.position,
             status: assessment.status,
             topic: (assessment as any).topic,
             questions, // might be empty if not started yet
@@ -71,9 +72,10 @@ export class AssessmentService {
         };
     }
 
-    async startAssessment(token: string, topic: string) {
+    async startAssessment(token: string, subject: string, topic?: string) {
         const assessment = await this.prisma.assessment.findUnique({
-            where: { token }
+            where: { token },
+            include: { candidate: true }
         });
 
         if (!assessment) throw new NotFoundException('Assessment not found');
@@ -81,10 +83,29 @@ export class AssessmentService {
             throw new BadRequestException('Already submitted');
         }
 
-        // Fetch questions from Question model based on topic
-        const easyQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'easy' } });
-        const mediumQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'medium' } });
-        const hardQuestions = await this.prisma.question.findMany({ where: { category: topic, difficulty: 'hard' } });
+        // Update candidate position if it changed during confirmation
+        if (assessment.candidate.position !== subject) {
+            await this.prisma.candidate.update({
+                where: { id: assessment.candidate.id },
+                data: { position: subject }
+            });
+        }
+
+        // Fetch questions from Question model
+        let easyQuestions, mediumQuestions, hardQuestions, allAvailable;
+
+        if (subject === 'Coding') {
+            const cat = topic || 'Python';
+            easyQuestions = await this.prisma.question.findMany({ where: { subject: { equals: 'Coding', mode: 'insensitive' }, category: { equals: cat, mode: 'insensitive' }, difficulty: 'easy' } });
+            mediumQuestions = await this.prisma.question.findMany({ where: { subject: { equals: 'Coding', mode: 'insensitive' }, category: { equals: cat, mode: 'insensitive' }, difficulty: 'medium' } });
+            hardQuestions = await this.prisma.question.findMany({ where: { subject: { equals: 'Coding', mode: 'insensitive' }, category: { equals: cat, mode: 'insensitive' }, difficulty: 'hard' } });
+            allAvailable = await this.prisma.question.findMany({ where: { subject: { equals: 'Coding', mode: 'insensitive' }, category: { equals: cat, mode: 'insensitive' } } });
+        } else {
+            easyQuestions = await this.prisma.question.findMany({ where: { subject: { equals: subject, mode: 'insensitive' }, difficulty: 'easy' } });
+            mediumQuestions = await this.prisma.question.findMany({ where: { subject: { equals: subject, mode: 'insensitive' }, difficulty: 'medium' } });
+            hardQuestions = await this.prisma.question.findMany({ where: { subject: { equals: subject, mode: 'insensitive' }, difficulty: 'hard' } });
+            allAvailable = await this.prisma.question.findMany({ where: { subject: { equals: subject, mode: 'insensitive' } } });
+        }
 
         // Shuffle helper
         const shuffle = (array: any[]) => array.sort(() => 0.5 - Math.random());
@@ -98,7 +119,6 @@ export class AssessmentService {
 
         // If the DB doesn't have 15 questions yet, we pad with whatever is available
         if (selectedQuestions.length < 15) {
-            const allAvailable = await this.prisma.question.findMany({ where: { category: topic } });
             selectedQuestions = shuffle(allAvailable).slice(0, 15);
         }
 
@@ -107,8 +127,8 @@ export class AssessmentService {
             selectedQuestions = [
                 {
                     id: '1',
-                    category: topic,
-                    questionText: `What is the primary function of ${topic}?`,
+                    category: topic || subject,
+                    questionText: `What is the primary function of ${topic || subject}?`,
                     options: ['To compile code', 'To write logic', 'To style pages', 'To manage databases'],
                     correctAnswer: 'To write logic',
                     difficulty: 'low',
@@ -120,11 +140,25 @@ export class AssessmentService {
         // Shuffle the final selected questions
         selectedQuestions = shuffle(selectedQuestions);
 
+        // Fetch Audio Questions
+        const audioPrompts = [
+            { label: 'Introduction', prompt: '"Tell me about yourself."' }
+        ];
+
+        const audioQs = await this.prisma.audioQuestion.findMany({ where: { subject: { equals: subject, mode: 'insensitive' } } });
+        if (audioQs.length > 0) {
+            const randomAudioQ = shuffle(audioQs)[0];
+            audioPrompts.push({ label: 'Subject Question', prompt: `"${randomAudioQ.questionText}"` });
+        } else {
+            audioPrompts.push({ label: 'Subject Demo', prompt: `"Please explain a fundamental concept of ${subject} to a beginner."` });
+        }
+
         const updatedAssessment = await this.prisma.assessment.update({
             where: { token },
             data: {
-                topic,
+                topic: topic || subject,
                 mcqQuestions: selectedQuestions as any[],
+                audioPrompts: audioPrompts as any,
                 startedAt: new Date(),
                 status: 'IN_PROGRESS'
             } as any
@@ -138,6 +172,7 @@ export class AssessmentService {
         return {
             message: 'Assessment started',
             questions: clientQuestions,
+            audioPrompts,
             duration: 20 * 60,
         };
     }
@@ -172,7 +207,7 @@ export class AssessmentService {
         return { link: link!, localPath };
     }
 
-    async evaluateAssessment(token: string, payload: any, teachingFile?: Express.Multer.File, introFile?: Express.Multer.File) {
+    async evaluateAssessment(token: string, payload: any, files: Array<Express.Multer.File> = []) {
         const assessment = await this.prisma.assessment.findUnique({
             where: { token },
         });
@@ -182,7 +217,7 @@ export class AssessmentService {
             throw new BadRequestException('Already submitted');
         }
 
-        for (const f of [teachingFile, introFile].filter(Boolean) as Express.Multer.File[]) {
+        for (const f of files) {
             if (!f.mimetype.startsWith('audio/') && !f.mimetype.includes('octet-stream')) {
                 throw new BadRequestException('Only audio files are allowed');
             }
@@ -233,20 +268,26 @@ export class AssessmentService {
             }
 
             // Always upload audio files regardless of MCQ score
+            let audioResponses: string[] = [];
             let audioDriveLink: string | null = null;
             let introAudioDriveLink: string | null = null;
             let audioFilePath: string | null = null;
 
             try {
-                if (teachingFile?.buffer) {
-                    const result = await this.uploadAudioFile(teachingFile, 'teaching', assessment.id);
-                    audioDriveLink = result.link;
-                    audioFilePath = result.localPath;
-                }
+                for (let i = 0; i < files.length; i++) {
+                    const f = files[i];
+                    // Name the file dynamically 
+                    const prefix = `audio_${i}`;
+                    const result = await this.uploadAudioFile(f, prefix, assessment.id);
+                    audioResponses.push(result.link);
 
-                if (introFile?.buffer) {
-                    const result = await this.uploadAudioFile(introFile, 'intro', assessment.id);
-                    introAudioDriveLink = result.link;
+                    // Maintain legacy fields for compatibility
+                    if (i === 0) {
+                        introAudioDriveLink = result.link;
+                    } else if (i === 1) {
+                        audioDriveLink = result.link;
+                        audioFilePath = result.localPath;
+                    }
                 }
             } catch (uploadErr) {
                 this.logger.error('Error uploading audio files:', uploadErr);
@@ -264,6 +305,7 @@ export class AssessmentService {
                             mcqScore,
                             audioDriveLink,
                             introAudioDriveLink,
+                            audioResponses: audioResponses,
                             status: hasAudio ? 'AUDIO_PROCESSING' : 'COMPLETED',
                             completedAt: new Date(),
                         },
@@ -277,8 +319,8 @@ export class AssessmentService {
                     if (hasAudio) {
                         await this.audioQueue.add('process-audio', {
                             assessmentId: assessment.id,
-                            audioFilePath,
-                            audioMimeType: teachingFile?.mimetype,
+                            audioFilePath: audioFilePath, // Still maps to second audio or highest
+                            audioMimeType: files[1]?.mimetype || files[0]?.mimetype,
                         });
                     }
 
@@ -295,6 +337,7 @@ export class AssessmentService {
                         mcqScore,
                         audioDriveLink,
                         introAudioDriveLink,
+                        audioResponses: audioResponses,
                         status: 'COMPLETED',
                         completedAt: new Date(),
                     },

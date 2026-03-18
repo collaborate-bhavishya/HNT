@@ -81,7 +81,42 @@ export class QuestionService {
 
     async getQuestionsByCategory(category: string) {
         return this.prisma.question.findMany({
-            where: { category }
+            where: { category: { equals: category, mode: 'insensitive' } }
+        });
+    }
+
+    async getQuestionsBySubject(subject: string) {
+        return this.prisma.question.findMany({
+            where: { subject: { equals: subject, mode: 'insensitive' } }
+        });
+    }
+
+    async getQuestionsBySubjectAndCategory(subject: string, category: string) {
+        return this.prisma.question.findMany({
+            where: { 
+                subject: { equals: subject, mode: 'insensitive' }, 
+                category: { equals: category, mode: 'insensitive' } 
+            }
+        });
+    }
+
+    // --- Audio Questions ---
+    async getAudioQuestionsBySubject(subject: string) {
+        return this.prisma.audioQuestion.findMany({
+            where: { subject: { equals: subject, mode: 'insensitive' } },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    async createAudioQuestion(data: { subject: string; questionText: string }) {
+        return this.prisma.audioQuestion.create({
+            data,
+        });
+    }
+
+    async deleteAudioQuestion(id: string) {
+        return this.prisma.audioQuestion.delete({
+            where: { id },
         });
     }
 

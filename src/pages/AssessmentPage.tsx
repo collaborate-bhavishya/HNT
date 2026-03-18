@@ -26,17 +26,21 @@ export default function AssessmentPage() {
   const [selectedTopic, setSelectedTopic] = useState<string>('');
   const [showTopicSelection, setShowTopicSelection] = useState(false);
 
+  const [position, setPosition] = useState<string>('Coding');
+  const [confirmedSubject, setConfirmedSubject] = useState<string>('Coding');
+  const [showSubjectConfirmation, setShowSubjectConfirmation] = useState(false);
+
   // Timer state
   const [timeLeft, setTimeLeft] = useState(EXAM_DURATION_SECONDS);
 
   // Anti-cheat state
   const [warnings, setWarnings] = useState(0);
 
-  // Audio state – two questions
-  const audioPrompts = [
+  // Audio state
+  const [audioPrompts, setAudioPrompts] = useState<any[]>([
     { label: 'Introduction', prompt: '"Tell me about yourself."' },
     { label: 'Teaching Demo', prompt: '"How would you explain the concept of variables in programming to a 10-year-old?"' },
-  ];
+  ]);
   const [audioStep, setAudioStep] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [audioUrls, setAudioUrls] = useState<(string | null)[]>([null, null]);
@@ -62,7 +66,16 @@ export default function AssessmentPage() {
         } else {
           if (data.questions && data.questions.length > 0) {
             setQuestions(data.questions);
+            if (data.audioPrompts) {
+              setAudioPrompts(data.audioPrompts);
+              setAudioUrls(new Array(data.audioPrompts.length).fill(null));
+              audioBlobsRef.current = new Array(data.audioPrompts.length).fill(null);
+            }
             setStarted(true);
+          }
+          if (data.position) {
+             setPosition(data.position);
+             setConfirmedSubject(data.position);
           }
           if (data.topic) setTopic(data.topic);
           setTimeLeft(data.duration || EXAM_DURATION_SECONDS);
@@ -197,21 +210,33 @@ export default function AssessmentPage() {
   };
 
   const startAssessmentByTopic = async () => {
-    if (!selectedTopic) return;
+    // Coding requires topic selection. Other subjects skip it.
+    if (confirmedSubject === 'Coding' && !selectedTopic) return;
+    
     setLoadingInitial(true);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     try {
+      const payload: any = { subject: confirmedSubject };
+      if (confirmedSubject === 'Coding') {
+         payload.topic = selectedTopic;
+      }
+
       const res = await fetch(`${API_URL}/api/assessment/${token}/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: selectedTopic })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) {
         alert(data.message || 'Failed to start assessment');
       } else {
         setQuestions(data.questions);
-        setTopic(selectedTopic);
+        if (data.audioPrompts) {
+          setAudioPrompts(data.audioPrompts);
+          setAudioUrls(new Array(data.audioPrompts.length).fill(null));
+          audioBlobsRef.current = new Array(data.audioPrompts.length).fill(null);
+        }
+        if (payload.topic) setTopic(payload.topic);
         setStarted(true);
         setTimeLeft(data.duration || EXAM_DURATION_SECONDS);
       }
@@ -234,11 +259,11 @@ export default function AssessmentPage() {
       }))
     ));
 
-    if (audioBlobsRef.current[0]) {
-      formData.append('introAudio', audioBlobsRef.current[0], 'intro-recording.webm');
-    }
-    if (audioBlobsRef.current[1]) {
-      formData.append('audio', audioBlobsRef.current[1], 'recording.webm');
+    // Append audio files dynamically based on audioPrompts length
+    for (let i = 0; i < audioBlobsRef.current.length; i++) {
+        if (audioBlobsRef.current[i]) {
+            formData.append(`audio`, audioBlobsRef.current[i] as Blob, `audio_${i}.webm`);
+        }
     }
 
     setIsSubmitting(true);
@@ -295,7 +320,7 @@ export default function AssessmentPage() {
   }
 
   // 1. Instruction View
-  if (!started && !showTopicSelection) {
+  if (!started && !showSubjectConfirmation && !showTopicSelection) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50">
@@ -368,10 +393,76 @@ export default function AssessmentPage() {
 
             <Button
               className="w-full h-14 text-xl bg-primary-600 hover:bg-primary-700 rounded-xl shadow-lg transition-all"
-              onClick={() => setShowTopicSelection(true)}
+              onClick={() => setShowSubjectConfirmation(true)}
             >
               Start the Assessment
             </Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // 1.5. Subject Confirmation View
+  if (!started && showSubjectConfirmation && !showTopicSelection) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50">
+          <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
+            <img src="/brightchamps-logo.svg" alt="BrightChamps" className="h-8" />
+            <span className="text-sm font-medium text-gray-500">Teacher Assessment Portal</span>
+          </div>
+        </nav>
+
+        <div className="max-w-4xl mx-auto px-6 py-10">
+          <Card className="p-8 space-y-8 shadow-xl">
+            <div className="text-center space-y-2">
+              <div className="mx-auto w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mb-4">
+                <CheckCircle2 className="w-8 h-8 text-green-600" />
+              </div>
+              <CardTitle className="text-3xl font-bold">Confirm Subject</CardTitle>
+              <CardDescription className="text-lg">
+                You’ve applied for <strong className="text-gray-900">{position}</strong>. 
+                Please confirm if this is correct.
+              </CardDescription>
+            </div>
+
+            <div className="max-w-sm mx-auto space-y-4">
+               <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Select Subject</label>
+                  <select 
+                      className="w-full border-gray-300 rounded-xl p-3 text-lg focus:ring-primary-500 focus:border-primary-500 bg-white shadow-sm"
+                      value={confirmedSubject}
+                      onChange={(e) => setConfirmedSubject(e.target.value)}
+                  >
+                      <option value="Coding">Coding</option>
+                      <option value="Math">Math</option>
+                      <option value="Science">Science</option>
+                      <option value="English">English</option>
+                      <option value="Robotics">Robotics</option>
+                      <option value="Rubik's Cube">Rubik's Cube</option>
+                      <option value="Chess">Chess</option>
+                  </select>
+               </div>
+            </div>
+
+            <div className="pt-6 border-t flex gap-4 max-w-sm mx-auto">
+              <Button variant="outline" className="h-14 px-8 rounded-xl" onClick={() => setShowSubjectConfirmation(false)}>
+                Back
+              </Button>
+              <Button
+                className="flex-1 h-14 text-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-xl shadow-lg transition-all"
+                onClick={() => {
+                   if (confirmedSubject === 'Coding') {
+                       setShowTopicSelection(true);
+                   } else {
+                       startAssessmentByTopic();
+                   }
+                }}
+              >
+                Next
+              </Button>
+            </div>
           </Card>
         </div>
       </div>

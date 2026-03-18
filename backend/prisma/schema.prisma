@@ -14,6 +14,7 @@ model HiringManager {
   email      String      @unique
   password   String
   phone      String?
+  subject    String      @default("Coding")
   isActive   Boolean     @default(true)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
@@ -68,6 +69,8 @@ model Assessment {
   audioDriveLink String?
   aiSpeechRawScores Json?
   aiSpeechTranscript String?
+  audioPrompts  Json?
+  audioResponses Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -80,5 +83,12 @@ model Question {
   options       Json
   correctAnswer String
   difficulty    String   @default("MEDIUM")
+  createdAt     DateTime @default(now())
+}
+
+model AudioQuestion {
+  id            String   @id @default(uuid())
+  subject       String   @default("coding")
+  questionText  String
   createdAt     DateTime @default(now())
 }

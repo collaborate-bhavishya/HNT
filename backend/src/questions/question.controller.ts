@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, UploadedFile, UseInterceptors, BadRequestException, Delete } from '@nestjs/common';
+import { Controller, Post, Get, Param, UploadedFile, UseInterceptors, BadRequestException, Delete, Body } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { QuestionService } from './question.service';
 import type { Express } from 'express';
@@ -22,8 +22,33 @@ export class QuestionController {
         return this.questionService.getQuestionsByCategory(category);
     }
 
+    @Get('subject/:subject')
+    async getBySubject(@Param('subject') subject: string) {
+        return this.questionService.getQuestionsBySubject(subject);
+    }
+
     @Delete('all')
     async deleteAll() {
         return this.questionService.deleteAllQuestions();
+    }
+
+    // --- Audio Questions API ---
+
+    @Get('audio/:subject')
+    async getAudioQuestions(@Param('subject') subject: string) {
+        return this.questionService.getAudioQuestionsBySubject(subject);
+    }
+
+    @Post('audio')
+    async createAudioQuestion(@Body() body: { subject: string; questionText: string }) {
+        if (!body.subject || !body.questionText) {
+            throw new BadRequestException('Subject and questionText is required');
+        }
+        return this.questionService.createAudioQuestion(body);
+    }
+
+    @Delete('audio/:id')
+    async deleteAudioQuestion(@Param('id') id: string) {
+        return this.questionService.deleteAudioQuestion(id);
     }
 }

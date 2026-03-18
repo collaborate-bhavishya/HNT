@@ -82,6 +82,7 @@ interface HiringManagerInfo {
     name: string;
     email: string;
     phone?: string | null;
+    subject?: string;
     isActive?: boolean;
     createdAt?: string;
     candidateCount?: number;
@@ -110,11 +111,12 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
+    const [positionFilter, setPositionFilter] = useState<string>('ALL');
     const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS' | 'HIRING_MANAGERS'>('CANDIDATES');
 
     const [hiringManagers, setHiringManagers] = useState<HiringManagerInfo[]>([]);
     const [activeManagers, setActiveManagers] = useState<HiringManagerInfo[]>([]);
-    const [hmForm, setHmForm] = useState({ name: '', email: '', password: '', phone: '' });
+    const [hmForm, setHmForm] = useState({ name: '', email: '', password: '', phone: '', subject: 'Coding' });
     const [editingHm, setEditingHm] = useState<string | null>(null);
     const [hmMsg, setHmMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -126,6 +128,10 @@ export default function AdminDashboard() {
     // Question management state
     const [uploading, setUploading] = useState(false);
     const [importMsg, setImportMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [qbTab, setQbTab] = useState<'MCQ' | 'AUDIO'>('MCQ');
+    const [audioQs, setAudioQs] = useState<any[]>([]);
+    const [aqForm, setAqForm] = useState({ subject: 'Coding', questionText: '' });
+    const [aqLoading, setAqLoading] = useState(false);
 
     const fetchCandidates = async () => {
         setLoading(true);
@@ -180,7 +186,7 @@ export default function AdminDashboard() {
                 ? `${API_BASE}/api/hiring-managers/${editingHm}`
                 : `${API_BASE}/api/hiring-managers`;
             const method = editingHm ? 'PUT' : 'POST';
-            const body: any = { name: hmForm.name, email: hmForm.email, phone: hmForm.phone || undefined };
+            const body: any = { name: hmForm.name, email: hmForm.email, phone: hmForm.phone || undefined, subject: hmForm.subject };
             if (hmForm.password) body.password = hmForm.password;
 
             const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -189,7 +195,7 @@ export default function AdminDashboard() {
                 throw new Error(data.message || 'Failed');
             }
             setHmMsg({ type: 'success', text: editingHm ? 'Updated successfully' : 'Hiring manager created' });
-            setHmForm({ name: '', email: '', password: '', phone: '' });
+            setHmForm({ name: '', email: '', password: '', phone: '', subject: 'Coding' });
             setEditingHm(null);
             fetchHiringManagers();
         } catch (err: any) {
@@ -260,6 +266,45 @@ export default function AdminDashboard() {
         }
     };
 
+    const fetchAudioQs = async (subject: string) => {
+        try {
+            const res = await fetch(`${API_BASE}/api/questions/audio/${subject}`);
+            if (res.ok) setAudioQs(await res.json());
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleCreateAq = async () => {
+        if (!aqForm.questionText) return;
+        setAqLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/questions/audio`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(aqForm),
+            });
+            if (res.ok) {
+                setAqForm({ ...aqForm, questionText: '' });
+                fetchAudioQs(aqForm.subject);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setAqLoading(false);
+        }
+    };
+
+    const handleDeleteAq = async (id: string) => {
+        if (!confirm('Delete this prompt?')) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/questions/audio/${id}`, { method: 'DELETE' });
+            if (res.ok) fetchAudioQs(aqForm.subject);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -307,19 +352,30 @@ export default function AdminDashboard() {
         }
     }, [isAuthenticated]);
 
+    const uniquePositions = Array.from(new Set(candidates.map(c => c.position))).sort();
+
+    const positionCounts = candidates.reduce((acc, c) => {
+        acc[c.position] = (acc[c.position] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+
     const filteredCandidates = candidates.filter(c => {
         const matchesSearch =
             `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
             c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
             c.position.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        const matchesPosition = positionFilter === 'ALL' || c.position === positionFilter;
+        return matchesSearch && matchesStatus && matchesPosition;
     });
 
-    const statusCounts = candidates.reduce((acc, c) => {
-        acc[c.status] = (acc[c.status] || 0) + 1;
-        return acc;
-    }, {} as Record<string, number>);
+    // Status counts scoped to the selected position
+    const statusCounts = candidates
+        .filter(c => positionFilter === 'ALL' || c.position === positionFilter)
+        .reduce((acc, c) => {
+            acc[c.status] = (acc[c.status] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
 
     const isRejected = (status: string) => ['REJECTED', 'REJECTED_FORM', 'REJECTED_FINAL'].includes(status);
     const isSuccess = (status: string) => ['SELECTED'].includes(status);
@@ -405,65 +461,98 @@ export default function AdminDashboard() {
                     <h1 className="text-xl font-bold text-gray-900">EdTech Admin</h1>
                     <p className="text-xs text-gray-500 mt-1">{userName} · {userRole === 'MASTER_ADMIN' ? 'Master Admin' : 'Hiring Manager'}</p>
                 </div>
-                <nav className="p-4 space-y-1 flex-1">
+                <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
                     <Button
                         variant="ghost"
-                        className={cn("w-full justify-start gap-3", activeTab === 'CANDIDATES' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
-                        onClick={() => setActiveTab('CANDIDATES')}
+                        className={cn("w-full justify-start gap-3", activeTab === 'CANDIDATES' && positionFilter === 'ALL' && statusFilter === 'ALL' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
+                        onClick={() => { setActiveTab('CANDIDATES'); setPositionFilter('ALL'); setStatusFilter('ALL'); }}
                     >
                         <User className="w-5 h-5" />
                         {isMasterAdmin ? 'All Candidates' : 'My Candidates'}
                         <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{candidates.length}</span>
                     </Button>
-                    {isMasterAdmin && (
-                        <Button
-                            variant="ghost"
-                            className={cn("w-full justify-start gap-3", activeTab === 'QUESTIONS' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
-                            onClick={() => setActiveTab('QUESTIONS')}
-                        >
-                            <Database className="w-5 h-5" />
-                            Question Bank
-                        </Button>
-                    )}
-                    {isMasterAdmin && (
-                        <Button
-                            variant="ghost"
-                            className={cn("w-full justify-start gap-3", activeTab === 'HIRING_MANAGERS' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
-                            onClick={() => { setActiveTab('HIRING_MANAGERS'); fetchHiringManagers(); }}
-                        >
-                            <User className="w-5 h-5" />
-                            Hiring Managers
-                            <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{hiringManagers.length}</span>
-                        </Button>
-                    )}
 
                     <div className="h-4" />
-                    <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Candidate Filters</div>
+                    <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Subjects</div>
 
                     {activeTab === 'CANDIDATES' && (
                         <>
-                            {Object.entries(statusConfig).map(([key, config]) => {
-                                const count = statusCounts[key] || 0;
-                                if (count === 0) return null;
+                            {uniquePositions.map(pos => {
+                                const posCount = positionCounts[pos] || 0;
+                                const isActivePos = positionFilter === pos;
                                 return (
-                                    <Button
-                                        key={key}
-                                        variant="ghost"
-                                        className={cn("w-full justify-start gap-3 text-sm", statusFilter === key ? "bg-primary-50 text-primary-700" : "text-gray-600")}
-                                        onClick={() => {
-                                            setStatusFilter(key);
-                                            setActiveTab('CANDIDATES');
-                                        }}
-                                    >
-                                        <span className={cn("w-2 h-2 rounded-full", isRejected(key) ? "bg-red-500" : isSuccess(key) ? "bg-green-500" : "bg-blue-500")} />
-                                        {config.label}
-                                        <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{count}</span>
-                                    </Button>
+                                    <div key={pos}>
+                                        <Button
+                                            variant="ghost"
+                                            className={cn("w-full justify-start gap-3 text-sm", isActivePos ? "bg-primary-50 text-primary-700 font-semibold" : "text-gray-600")}
+                                            onClick={() => {
+                                                if (isActivePos) {
+                                                    setPositionFilter('ALL');
+                                                    setStatusFilter('ALL');
+                                                } else {
+                                                    setPositionFilter(pos);
+                                                    setStatusFilter('ALL');
+                                                }
+                                            }}
+                                        >
+                                            <span className={cn("w-2.5 h-2.5 rounded-md", isActivePos ? "bg-primary-500" : "bg-gray-300")} />
+                                            {pos}
+                                            <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{posCount}</span>
+                                        </Button>
+
+                                        {/* Nested status filters when this subject is selected */}
+                                        {isActivePos && (
+                                            <div className="ml-5 pl-3 border-l-2 border-primary-100 space-y-0.5 mt-1 mb-2">
+                                                {Object.entries(statusConfig).map(([key, config]) => {
+                                                    const count = statusCounts[key] || 0;
+                                                    if (count === 0) return null;
+                                                    return (
+                                                        <Button
+                                                            key={key}
+                                                            variant="ghost"
+                                                            className={cn("w-full justify-start gap-2 text-xs h-8", statusFilter === key ? "bg-primary-50 text-primary-700 font-medium" : "text-gray-500")}
+                                                            onClick={() => {
+                                                                setStatusFilter(statusFilter === key ? 'ALL' : key);
+                                                            }}
+                                                        >
+                                                            <span className={cn("w-1.5 h-1.5 rounded-full", isRejected(key) ? "bg-red-500" : isSuccess(key) ? "bg-green-500" : "bg-blue-500")} />
+                                                            {config.label}
+                                                            <span className="ml-auto text-[10px] bg-gray-100 px-1.5 py-0.5 rounded-full">{count}</span>
+                                                        </Button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
                                 );
                             })}
                         </>
                     )}
                 </nav>
+
+                {isMasterAdmin && (
+                    <div className="p-4 space-y-1 bg-gray-50/80 border-t">
+                        <div className="px-3 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Admin Settings</div>
+                        <Button
+                            variant="ghost"
+                            className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'QUESTIONS' ? "bg-white shadow-sm border border-gray-200 text-primary-700" : "text-gray-700 hover:bg-gray-100")}
+                            onClick={() => setActiveTab('QUESTIONS')}
+                        >
+                            <Database className="w-5 h-5" />
+                            Question Bank
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'HIRING_MANAGERS' ? "bg-white shadow-sm border border-gray-200 text-primary-700" : "text-gray-700 hover:bg-gray-100")}
+                            onClick={() => { setActiveTab('HIRING_MANAGERS'); fetchHiringManagers(); }}
+                        >
+                            <User className="w-5 h-5" />
+                            Hiring Managers
+                            <span className="ml-auto text-xs bg-gray-200 px-2 py-0.5 rounded-full text-gray-700">{hiringManagers.length}</span>
+                        </Button>
+                    </div>
+                )}
+
                 <div className="p-4 border-t space-y-2">
                     <Button variant="outline" className="w-full gap-2" onClick={fetchCandidates}>
                         <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
@@ -596,30 +685,44 @@ export default function AdminDashboard() {
                                     <Input placeholder="Email" type="email" value={hmForm.email} onChange={e => setHmForm(f => ({ ...f, email: e.target.value }))} />
                                     <Input placeholder={editingHm ? 'New Password (leave blank to keep)' : 'Password'} type="password" value={hmForm.password} onChange={e => setHmForm(f => ({ ...f, password: e.target.value }))} />
                                     <Input placeholder="Phone (optional)" value={hmForm.phone} onChange={e => setHmForm(f => ({ ...f, phone: e.target.value }))} />
+                                    <select 
+                                        className="h-10 border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 rounded-md"
+                                        value={hmForm.subject}
+                                        onChange={e => setHmForm(f => ({ ...f, subject: e.target.value }))}
+                                    >
+                                        <option value="Coding">Coding</option>
+                                        <option value="Math">Math</option>
+                                        <option value="Science">Science</option>
+                                        <option value="English">English</option>
+                                        <option value="Robotics">Robotics</option>
+                                        <option value="Rubik's Cube">Rubik's Cube</option>
+                                        <option value="Chess">Chess</option>
+                                    </select>
                                 </div>
                                 <div className="flex gap-3">
                                     <Button onClick={createOrUpdateHm} className="bg-primary-600 hover:bg-primary-700">{editingHm ? 'Update' : 'Add Manager'}</Button>
-                                    {editingHm && <Button variant="outline" onClick={() => { setEditingHm(null); setHmForm({ name: '', email: '', password: '', phone: '' }); }}>Cancel</Button>}
+                                    {editingHm && <Button variant="outline" onClick={() => { setEditingHm(null); setHmForm({ name: '', email: '', password: '', phone: '', subject: 'Coding' }); }}>Cancel</Button>}
                                 </div>
                             </div>
                             <div className="border-t pt-6">
                                 <h3 className="text-lg font-bold text-gray-900 mb-4">All Hiring Managers</h3>
                                 <table className="w-full text-sm">
-                                    <thead><tr className="text-left text-gray-500 bg-gray-50"><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Phone</th><th className="px-4 py-3">Candidates</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead>
+                                    <thead><tr className="text-left text-gray-500 bg-gray-50"><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Phone</th><th className="px-4 py-3">Subject</th><th className="px-4 py-3">Candidates</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead>
                                     <tbody>
                                         {hiringManagers.map(hm => (
                                             <tr key={hm.id} className="border-t hover:bg-gray-50 transition-colors">
                                                 <td className="px-4 py-3 font-medium">{hm.name}</td>
-                                                <td className="px-4 py-3 text-gray-600">{hm.email}</td>
-                                                <td className="px-4 py-3 text-gray-600">{hm.phone || '—'}</td>
-                                                <td className="px-4 py-3 text-center">{hm.candidateCount ?? 0}</td>
+                                                <td className="px-4 py-3 text-gray-500">{hm.email}</td>
+                                                <td className="px-4 py-3 text-gray-500">{hm.phone || '-'}</td>
+                                                <td className="px-4 py-3 text-gray-700 font-medium">{hm.subject || 'Coding'}</td>
+                                                <td className="px-4 py-3">{hm.candidateCount || 0}</td>
                                                 <td className="px-4 py-3">
                                                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${hm.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                                                         {hm.isActive ? 'Active' : 'Inactive'}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3 flex gap-2">
-                                                    <Button size="sm" variant="outline" onClick={() => { setEditingHm(hm.id); setHmForm({ name: hm.name, email: hm.email, password: '', phone: hm.phone || '' }); }}>Edit</Button>
+                                                    <Button size="sm" variant="outline" onClick={() => { setEditingHm(hm.id); setHmForm({ name: hm.name, email: hm.email, password: '', phone: hm.phone || '', subject: hm.subject || 'Coding' }); }}>Edit</Button>
                                                     {hm.isActive && <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => deactivateHm(hm.id)}>Deactivate</Button>}
                                                 </td>
                                             </tr>
@@ -655,72 +758,160 @@ export default function AdminDashboard() {
                         </Card>
                     ) : (
                         <div className="flex-1 flex flex-col gap-6 animate-in fade-in duration-300">
-                            <Card className="bg-white p-8 space-y-8">
-                                <div className="max-w-xl space-y-4">
-                                    <h3 className="text-xl font-bold text-gray-900">Import MCQ Question Bank</h3>
-                                    <p className="text-sm text-gray-600">
-                                        Upload a CSV file to populate your technical pool. The file should have columns for:
-                                        <code className="block mt-2 p-2 bg-gray-50 rounded text-xs text-primary-700 font-mono">
-                                            #, Category, Difficulty, Question, Option A, Option B, Option C, Option D, Correct Answer
-                                        </code>
-                                    </p>
-                                </div>
+                            <div className="flex gap-2 border-b border-gray-200 pb-2">
+                                <Button 
+                                    variant={qbTab === 'MCQ' ? 'default' : 'ghost'} 
+                                    className={qbTab === 'MCQ' ? 'bg-primary-600 text-white' : 'text-gray-600'}
+                                    onClick={() => setQbTab('MCQ')}
+                                >
+                                    Multiple Choice Questions (CSV)
+                                </Button>
+                                <Button 
+                                    variant={qbTab === 'AUDIO' ? 'default' : 'ghost'} 
+                                    className={qbTab === 'AUDIO' ? 'bg-primary-600 text-white' : 'text-gray-600'}
+                                    onClick={() => { setQbTab('AUDIO'); fetchAudioQs(aqForm.subject); }}
+                                >
+                                    Audio Interview Questions
+                                </Button>
+                            </div>
 
-                                <div className="grid sm:grid-cols-2 gap-8 items-start">
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-center w-full">
-                                            <label className={cn(
-                                                "flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all",
-                                                uploading ? "bg-gray-100 border-gray-300" : "bg-primary-50/30 border-primary-200 hover:bg-primary-50"
-                                            )}>
-                                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                                    <FileUp className={cn("w-10 h-10 mb-3", uploading ? "text-gray-400 animate-bounce" : "text-primary-600")} />
-                                                    <p className="mb-2 text-sm text-gray-700">
-                                                        <span className="font-bold">Click to upload MCQ CSV</span>
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">Only CSV files are supported</p>
-                                                </div>
-                                                <input type="file" className="hidden" accept=".csv" onChange={handleCsvUpload} disabled={uploading} />
-                                            </label>
+                            {qbTab === 'MCQ' ? (
+                                <>
+                                    <Card className="bg-white p-8 space-y-8">
+                                        <div className="max-w-xl space-y-4">
+                                            <h3 className="text-xl font-bold text-gray-900">Import MCQ Question Bank</h3>
+                                            <p className="text-sm text-gray-600">
+                                                Upload a CSV file to populate your technical pool. The file should have columns for:
+                                                <code className="block mt-2 p-2 bg-gray-50 rounded text-xs text-primary-700 font-mono">
+                                                    #, Category, Difficulty, Question, Option A, Option B, Option C, Option D, Correct Answer
+                                                </code>
+                                            </p>
                                         </div>
 
-                                        {importMsg && (
-                                            <div className={cn(
-                                                "p-4 rounded-xl flex items-center gap-3 transition-all animate-in fade-in slide-in-from-top-2",
-                                                importMsg.type === 'success' ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100"
-                                            )}>
-                                                {importMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
-                                                <span className="text-sm font-medium">{importMsg.text}</span>
+                                        <div className="grid sm:grid-cols-2 gap-8 items-start">
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-center w-full">
+                                                    <label className={cn(
+                                                        "flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all",
+                                                        uploading ? "bg-gray-100 border-gray-300" : "bg-primary-50/30 border-primary-200 hover:bg-primary-50"
+                                                    )}>
+                                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                            <FileUp className={cn("w-10 h-10 mb-3", uploading ? "text-gray-400 animate-bounce" : "text-primary-600")} />
+                                                            <p className="mb-2 text-sm text-gray-700">
+                                                                <span className="font-bold">Click to upload MCQ CSV</span>
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">Only CSV files are supported</p>
+                                                        </div>
+                                                        <input type="file" className="hidden" accept=".csv" onChange={handleCsvUpload} disabled={uploading} />
+                                                    </label>
+                                                </div>
+
+                                                {importMsg && (
+                                                    <div className={cn(
+                                                        "p-4 rounded-xl flex items-center gap-3 transition-all animate-in fade-in slide-in-from-top-2",
+                                                        importMsg.type === 'success' ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100"
+                                                    )}>
+                                                        {importMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
+                                                        <span className="text-sm font-medium">{importMsg.text}</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
 
-                                    <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100 space-y-4">
-                                        <h4 className="font-bold text-amber-900 flex items-center gap-2">
-                                            <Database className="w-4 h-4" />
-                                            Database Actions
-                                        </h4>
-                                        <p className="text-xs text-amber-800 leading-relaxed">
-                                            Importing new questions will add them to the existing pool. If you want to replace the entire bank, clear the database first.
+                                            <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100 space-y-4">
+                                                <h4 className="font-bold text-amber-900 flex items-center gap-2">
+                                                    <Database className="w-4 h-4" />
+                                                    Database Actions
+                                                </h4>
+                                                <p className="text-xs text-amber-800 leading-relaxed">
+                                                    Importing new questions will add them to the existing pool. If you want to replace the entire bank, clear the database first.
+                                                </p>
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-start gap-3 border-amber-200 text-amber-900 hover:bg-amber-100 font-bold"
+                                                    onClick={clearAllQuestions}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                    Clear All Questions
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="bg-white p-6">
+                                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">CSV Template Preview</h3>
+                                        <div className="bg-gray-900 rounded-xl p-4 text-gray-300 font-mono text-xs overflow-x-auto whitespace-pre">
+                                            {"# Header Row Required\n#,Category,Difficulty,Question,Option A,Option B,Option C,Option D,Correct Answer\n1,Python,easy,\"Output of 2**3?\",6,8,9,16,8\n2,JavaScript,medium,\"Which is not a data type?\",String,Boolean,Number,Float,Float"}
+                                        </div>
+                                    </Card>
+                                </>
+                            ) : (
+                                <Card className="bg-white p-8 space-y-8">
+                                    <div className="max-w-xl space-y-4">
+                                        <h3 className="text-xl font-bold text-gray-900">Audio Assessment Prompts</h3>
+                                        <p className="text-sm text-gray-600">
+                                            Manage the subject-specific audio questions. One active question per subject will be randomly selected along with the global intro question.
                                         </p>
-                                        <Button
-                                            variant="outline"
-                                            className="w-full justify-start gap-3 border-amber-200 text-amber-900 hover:bg-amber-100 font-bold"
-                                            onClick={clearAllQuestions}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                            Clear All Questions
-                                        </Button>
                                     </div>
-                                </div>
-                            </Card>
-
-                            <Card className="bg-white p-6">
-                                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">CSV Template Preview</h3>
-                                <div className="bg-gray-900 rounded-xl p-4 text-gray-300 font-mono text-xs overflow-x-auto whitespace-pre">
-                                    {"# Header Row Required\n#,Category,Difficulty,Question,Option A,Option B,Option C,Option D,Correct Answer\n1,Python,easy,\"Output of 2**3?\",6,8,9,16,8\n2,JavaScript,medium,\"Which is not a data type?\",String,Boolean,Number,Float,Float"}
-                                </div>
-                            </Card>
+                                    <div className="grid sm:grid-cols-3 gap-6">
+                                        <div className="sm:col-span-1 space-y-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+                                           <h4 className="font-bold text-gray-800">Add New Prompt</h4>
+                                           <select 
+                                               className="w-full text-sm border-gray-300 rounded-lg p-2"
+                                               value={aqForm.subject}
+                                               onChange={e => {
+                                                   setAqForm({...aqForm, subject: e.target.value});
+                                                   fetchAudioQs(e.target.value);
+                                               }}
+                                           >
+                                               <option value="Coding">Coding</option>
+                                               <option value="Math">Math</option>
+                                               <option value="Science">Science</option>
+                                               <option value="English">English</option>
+                                               <option value="Robotics">Robotics</option>
+                                           </select>
+                                           <textarea
+                                               className="w-full text-sm border-gray-300 rounded-lg p-2"
+                                               placeholder="Type the question prompt..."
+                                               rows={3}
+                                               value={aqForm.questionText}
+                                               onChange={e => setAqForm({...aqForm, questionText: e.target.value})}
+                                           />
+                                           <Button 
+                                               className="w-full bg-primary-600" 
+                                               disabled={aqLoading || !aqForm.questionText}
+                                               onClick={handleCreateAq}
+                                           >
+                                               {aqLoading ? 'Adding...' : 'Add Prompt'}
+                                           </Button>
+                                        </div>
+                                        <div className="sm:col-span-2 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="font-bold text-gray-800">Current Prompts for {aqForm.subject}</h4>
+                                                <Button size="sm" variant="outline" onClick={() => fetchAudioQs(aqForm.subject)}><RefreshCw className="w-4 h-4 mr-2"/> Refresh</Button>
+                                            </div>
+                                            <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                                                {audioQs.length === 0 ? (
+                                                    <div className="text-center p-8 bg-gray-50 rounded-xl text-gray-500 border border-dashed border-gray-300">
+                                                        No audio prompts configured for this subject yet.
+                                                    </div>
+                                                ) : (
+                                                    audioQs.map(q => (
+                                                        <div key={q.id} className="flex items-start justify-between p-4 bg-white border border-gray-200 shadow-sm rounded-xl">
+                                                            <div className="pr-4">
+                                                                <p className="text-sm font-medium text-gray-900">{q.questionText}</p>
+                                                                <p className="text-xs text-gray-400 mt-1">Added {new Date(q.createdAt).toLocaleDateString()}</p>
+                                                            </div>
+                                                            <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 hover:text-red-700" onClick={() => handleDeleteAq(q.id)}>
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Card>
+                            )}
                         </div>
                     )}
 

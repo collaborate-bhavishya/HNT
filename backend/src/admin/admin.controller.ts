@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminService } from './admin.service';
 
@@ -8,8 +8,8 @@ export class AdminController {
     constructor(private readonly adminService: AdminService) { }
 
     @Get('candidates')
-    async getAllCandidates() {
-        return this.adminService.getAllCandidates();
+    async getAllCandidates(@Req() req: any) {
+        return this.adminService.getAllCandidates(req.user);
     }
 
     @Get('candidates/:id')

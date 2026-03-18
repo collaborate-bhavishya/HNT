@@ -6,7 +6,7 @@ export class HiringManagersController {
     constructor(private readonly service: HiringManagersService) {}
 
     @Post()
-    async create(@Body() body: { name: string; email: string; password: string; phone?: string }) {
+    async create(@Body() body: { name: string; email: string; password: string; phone?: string; subject?: string }) {
         return this.service.create(body);
     }
 

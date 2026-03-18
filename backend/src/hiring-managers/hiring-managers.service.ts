@@ -6,7 +6,7 @@ import * as bcrypt from 'bcrypt';
 export class HiringManagersService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async create(data: { name: string; email: string; password: string; phone?: string }) {
+    async create(data: { name: string; email: string; password: string; phone?: string; subject?: string }) {
         const existing = await this.prisma.hiringManager.findUnique({ where: { email: data.email } });
         if (existing) throw new BadRequestException('A hiring manager with this email already exists');
 
@@ -17,15 +17,16 @@ export class HiringManagersService {
                 email: data.email,
                 password: hashedPassword,
                 phone: data.phone || null,
+                subject: data.subject || 'Coding',
             },
-            select: { id: true, name: true, email: true, phone: true, isActive: true, createdAt: true },
+            select: { id: true, name: true, email: true, phone: true, subject: true, isActive: true, createdAt: true },
         });
     }
 
     async findAll() {
         const managers = await this.prisma.hiringManager.findMany({
             select: {
-                id: true, name: true, email: true, phone: true, isActive: true, createdAt: true,
+                id: true, name: true, email: true, phone: true, subject: true, isActive: true, createdAt: true,
                 _count: { select: { candidates: true } },
             },
             orderBy: { createdAt: 'desc' },
@@ -41,7 +42,7 @@ export class HiringManagersService {
         });
     }
 
-    async update(id: string, data: { name?: string; email?: string; password?: string; phone?: string; isActive?: boolean }) {
+    async update(id: string, data: { name?: string; email?: string; password?: string; phone?: string; subject?: string; isActive?: boolean }) {
         const manager = await this.prisma.hiringManager.findUnique({ where: { id } });
         if (!manager) throw new NotFoundException('Hiring manager not found');
 
@@ -49,13 +50,14 @@ export class HiringManagersService {
         if (data.name !== undefined) updateData.name = data.name;
         if (data.email !== undefined) updateData.email = data.email;
         if (data.phone !== undefined) updateData.phone = data.phone;
+        if (data.subject !== undefined) updateData.subject = data.subject;
         if (data.isActive !== undefined) updateData.isActive = data.isActive;
         if (data.password) updateData.password = await bcrypt.hash(data.password, 10);
 
         return this.prisma.hiringManager.update({
             where: { id },
             data: updateData,
-            select: { id: true, name: true, email: true, phone: true, isActive: true, createdAt: true },
+            select: { id: true, name: true, email: true, phone: true, subject: true, isActive: true, createdAt: true },
         });
     }
 
