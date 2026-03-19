@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { HiringManagersService } from '../../hiring-managers/hiring-managers.service';
+import { QualityTeamService } from '../../quality-team/quality-team.service';
 
 const MASTER_ADMIN_EMAIL = process.env.MASTER_ADMIN_EMAIL || 'bhavishya@brightchamps.store';
 const MASTER_ADMIN_PASSWORD = process.env.MASTER_ADMIN_PASSWORD || 'masteradmin@brightchamps';
@@ -10,6 +11,7 @@ export class AuthService {
     constructor(
         private jwtService: JwtService,
         private hiringManagersService: HiringManagersService,
+        private qualityTeamService: QualityTeamService,
     ) {}
 
     async login(body: { email: string; password: string }) {
@@ -32,6 +34,17 @@ export class AuthService {
                 name: manager.name,
                 email: manager.email,
                 access_token: this.jwtService.sign({ email, role: 'HIRING_MANAGER', managerId: manager.id }),
+            };
+        }
+
+        const qualityMember = await this.qualityTeamService.validateLogin(email, password);
+        if (qualityMember) {
+            return {
+                role: 'QUALITY_TEAM',
+                id: qualityMember.id,
+                name: qualityMember.name,
+                email: qualityMember.email,
+                access_token: this.jwtService.sign({ email, role: 'QUALITY_TEAM', qualityId: qualityMember.id }),
             };
         }
 

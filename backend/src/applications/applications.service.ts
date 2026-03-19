@@ -192,6 +192,22 @@ export class ApplicationsService {
         });
     }
 
+    async getAllCandidatesByQualityMember(qualityId: string) {
+        return this.prisma.candidate.findMany({
+            where: { qualityTeamId: qualityId },
+            include: {
+                hiringManager: { select: { id: true, name: true } },
+                qualityTeam: { select: { id: true, name: true } },
+                assessments: {
+                    select: { startedAt: true, completedAt: true, finalScore: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                },
+            },
+            orderBy: { updatedAt: 'desc' },
+        });
+    }
+
     async getCandidateById(id: string) {
         return this.prisma.candidate.findUnique({
             where: { id },
@@ -275,11 +291,88 @@ export class ApplicationsService {
             data,
         });
 
-        if (status === 'SELECTED' || status === 'REJECTED_FINAL') {
+        if (status === 'SELECTED' || status === 'REJECTED_FINAL' || status === 'SELECTED_FOR_TRAINING') {
             await this.notifications.sendFinalDecisionEmail(candidate.email, status);
         }
 
         return candidate;
+    }
+
+    async updateCandidatePosition(id: string, position: string) {
+        return this.prisma.candidate.update({
+            where: { id },
+            data: { position },
+            include: { hiringManager: { select: { id: true, name: true } } },
+        });
+    }
+
+    async submitQualityReviewLink(candidateId: string, link: string) {
+        const candidate = await this.prisma.candidate.update({
+            where: { id: candidateId },
+            data: { 
+                qualityReviewLink: link,
+                status: 'QUALITY_REVIEW_PENDING'
+            },
+        });
+
+        // Auto-assign quality team member
+        await this.autoAssignQualityTeam(candidate.id, candidate.position);
+
+        return candidate;
+    }
+
+    async finalizeQualityReview(candidateId: string, qualityTeamId: string, scores: any, decision: string) {
+        const status = decision === 'SELECTED_FOR_TRAINING' ? 'SELECTED_FOR_TRAINING' : 'REJECTED_FINAL';
+        
+        const candidate = await this.prisma.candidate.update({
+            where: { id: candidateId },
+            data: {
+                qualityReviewScore: scores,
+                qualityReviewResult: decision,
+                status,
+                qualityTeamId, // Ensure it's marked as reviewed by this person
+            },
+        });
+
+        await this.notifications.sendFinalDecisionEmail(candidate.email, status);
+
+        return candidate;
+    }
+
+    private async autoAssignQualityTeam(candidateId: string, subject: string) {
+        try {
+            const members = await this.prisma.qualityTeam.findMany({
+                where: {
+                    subject: { equals: subject, mode: 'insensitive' },
+                    isActive: true,
+                    isAutoAssignEnabled: true,
+                },
+                orderBy: {
+                    lastAssignedAt: 'asc', // Round robin based on last assignment
+                },
+                take: 1,
+            });
+
+            if (members.length > 0) {
+                const member = members[0];
+                await this.prisma.candidate.update({
+                    where: { id: candidateId },
+                    data: { qualityTeamId: member.id },
+                });
+
+                // Update member to shift them in round robin
+                await this.prisma.qualityTeam.update({
+                    where: { id: member.id },
+                    data: { lastAssignedAt: new Date() },
+                });
+
+                console.log(`[QualityAutoAssign] Assigned candidate ${candidateId} to quality member ${member.name}`);
+            } else {
+                console.log(`[QualityAutoAssign] No auto-assign eligible quality members found for subject: ${subject}`);
+            }
+        } catch (error) {
+            console.error('[QualityAutoAssign] Error:', error);
+        }
     }
 
     private async autoAssignHiringManager(candidateId: string, subject: string) {

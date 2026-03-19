@@ -42,7 +42,7 @@ export class HiringManagersService {
         });
     }
 
-    async update(id: string, data: { name?: string; email?: string; password?: string; phone?: string; subject?: string; isActive?: boolean }) {
+    async update(id: string, data: { name?: string; email?: string; password?: string; phone?: string; subject?: string; isActive?: boolean; isAutoAssignEnabled?: boolean }) {
         const manager = await this.prisma.hiringManager.findUnique({ where: { id } });
         if (!manager) throw new NotFoundException('Hiring manager not found');
 

@@ -13,9 +13,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     async validate(payload: any) {
-        if (payload.role !== 'admin') {
+        const validRoles = ['admin', 'MASTER_ADMIN', 'HIRING_MANAGER', 'QUALITY_TEAM'];
+        if (!validRoles.includes(payload.role)) {
             throw new UnauthorizedException('Admin access required');
         }
-        return { userId: payload.sub, username: payload.username, role: payload.role };
+        return { userId: payload.sub, username: payload.username, role: payload.role, email: payload.email, managerId: payload.managerId, qualityId: payload.qualityId };
     }
 }

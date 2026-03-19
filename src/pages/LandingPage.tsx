@@ -76,10 +76,17 @@ export default function LandingPage() {
                             Global Reach
                         </a>
                         <Button
-                            onClick={() => navigate('/apply')}
-                            className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-200 rounded-full px-6"
+                            variant="ghost"
+                            onClick={() => navigate('/admin')}
+                            className="text-gray-600 hover:text-gray-900 font-medium"
                         >
-                            Apply Now
+                            Admin
+                        </Button>
+                        <Button
+                            onClick={() => navigate('/candidate-login')}
+                            className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-200 rounded-full px-8"
+                        >
+                            Login
                         </Button>
                     </div>
                 </div>
@@ -119,7 +126,7 @@ export default function LandingPage() {
                         {/* CTA */}
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-300">
                             <Button
-                                onClick={() => navigate('/apply')}
+                                onClick={() => navigate('/candidate-login')}
                                 className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white text-lg h-14 px-10 rounded-full shadow-xl shadow-orange-200 hover:shadow-2xl hover:shadow-orange-300 transition-all hover:scale-105"
                             >
                                 🚀 Start Your Application
@@ -161,7 +168,7 @@ export default function LandingPage() {
                         Join our teaching academy and make a real impact on thousands of young learners across the globe.
                     </p>
                     <Button
-                        onClick={() => navigate('/apply')}
+                        onClick={() => navigate('/candidate-login')}
                         className="mt-10 bg-white text-purple-900 hover:bg-gray-100 text-lg h-14 px-10 rounded-full shadow-xl font-bold hover:scale-105 transition-all"
                     >
                         Apply to Teaching Academy →
@@ -244,7 +251,7 @@ export default function LandingPage() {
                         Start your journey with BrightChamps today. Help shape the future of young minds across the globe.
                     </p>
                     <Button
-                        onClick={() => navigate('/apply')}
+                        onClick={() => navigate('/candidate-login')}
                         className="bg-white text-orange-600 hover:bg-gray-100 text-lg h-14 px-12 rounded-full shadow-xl font-bold hover:scale-105 transition-all"
                     >
                         Start Your Application →

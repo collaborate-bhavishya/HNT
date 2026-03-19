@@ -12,6 +12,7 @@ import { QuestionsModule } from './questions/questions.module';
 import { HiringManagersModule } from './hiring-managers/hiring-managers.module';
 import { CandidateAuthModule } from './candidate-auth/candidate-auth.module';
 import { CandidateDashboardModule } from './candidate-dashboard/candidate-dashboard.module';
+import { QualityTeamModule } from './quality-team/quality-team.module';
 const redisUrl = (process.env.REDIS_URL || 'redis://localhost:6379').replace(/["']/g, '');
 console.log(`[AppModule] Connecting to Redis: ${redisUrl.replace(/\/\/.*@/, '//***@')}`);
 
@@ -52,6 +53,7 @@ redisConnection.on('connect', () => console.log('[Redis] Connected successfully'
     HiringManagersModule,
     CandidateAuthModule,
     CandidateDashboardModule,
+    QualityTeamModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

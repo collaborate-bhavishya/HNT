@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
-import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail, LayoutDashboard } from 'lucide-react';
+import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 import { CandidateDashboardConfigView } from '../components/CandidateDashboardConfigView';
 
@@ -17,7 +17,7 @@ const toIST = (dateStr: string, includeTime = false) => {
     return new Date(dateStr).toLocaleString('en-IN', options);
 };
 
-type CandidateStatus = 'APPLIED' | 'REJECTED' | 'AI_SCORING' | 'REJECTED_FORM' | 'TESTING' | 'AUDIO_PROCESSING' | 'SELECTED' | 'MANUAL_REVIEW' | 'REJECTED_FINAL' | 'AUDIO_FAILED';
+type CandidateStatus = 'APPLIED' | 'REJECTED' | 'AI_SCORING' | 'REJECTED_FORM' | 'TESTING' | 'AUDIO_PROCESSING' | 'SELECTED' | 'MANUAL_REVIEW' | 'REJECTED_FINAL' | 'AUDIO_FAILED' | 'QUALITY_REVIEW_PENDING' | 'SELECTED_FOR_TRAINING';
 
 interface Candidate {
     id: string;
@@ -37,6 +37,10 @@ interface Candidate {
     createdAt: string;
     updatedAt: string;
     assessments?: Assessment[];
+    qualityReviewLink?: string | null;
+    qualityReviewScore?: any | null;
+    qualityReviewResult?: string | null;
+    qualityTeamId?: string | null;
 }
 
 interface McqQuestion {
@@ -76,6 +80,8 @@ const statusConfig: Record<string, { label: string; color: string }> = {
     MANUAL_REVIEW: { label: 'Manual Review', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
     REJECTED_FINAL: { label: 'Rejected (Final)', color: 'bg-red-50 text-red-700 border-red-200' },
     AUDIO_FAILED: { label: 'Audio Failed', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+    QUALITY_REVIEW_PENDING: { label: 'Quality Review Pending', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+    SELECTED_FOR_TRAINING: { label: 'Selected for Training', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
 };
 
 interface HiringManagerInfo {
@@ -90,7 +96,7 @@ interface HiringManagerInfo {
     candidateCount?: number;
 }
 
-type UserRole = 'MASTER_ADMIN' | 'HIRING_MANAGER';
+type UserRole = 'MASTER_ADMIN' | 'HIRING_MANAGER' | 'QUALITY_TEAM';
 
 export default function AdminDashboard() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -102,6 +108,7 @@ export default function AdminDashboard() {
     const [userRole, setUserRole] = useState<UserRole | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [userName, setUserName] = useState('');
+    const [token, setToken] = useState<string | null>(null);
 
     const [isQuestionBankAuthenticated, setIsQuestionBankAuthenticated] = useState(false);
     const [qbPasswordInput, setQbPasswordInput] = useState('');
@@ -114,7 +121,7 @@ export default function AdminDashboard() {
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const [positionFilter, setPositionFilter] = useState<string>('ALL');
-    const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS' | 'HIRING_MANAGERS' | 'DASHBOARD_CONFIG'>('CANDIDATES');
+    const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS' | 'HIRING_MANAGERS' | 'DASHBOARD_CONFIG' | 'QUALITY_TEAM'>('CANDIDATES');
 
     const [hiringManagers, setHiringManagers] = useState<HiringManagerInfo[]>([]);
     const [activeManagers, setActiveManagers] = useState<HiringManagerInfo[]>([]);
@@ -122,6 +129,13 @@ export default function AdminDashboard() {
     const [editingHm, setEditingHm] = useState<string | null>(null);
     const [hmMsg, setHmMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [isAddHmOpen, setIsAddHmOpen] = useState(false);
+
+    // Quality Team Management State
+    const [qualityMembers, setQualityMembers] = useState<any[]>([]);
+    const [qtForm, setQtForm] = useState({ name: '', email: '', pin: '', subject: 'Coding', isActive: true, isAutoAssignEnabled: false });
+    const [editingQt, setEditingQt] = useState<string | null>(null);
+    const [isAddQtOpen, setIsAddQtOpen] = useState(false);
+    const [qtMsg, setQtMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
     const isMasterAdmin = userRole === 'MASTER_ADMIN';
 
@@ -140,10 +154,15 @@ export default function AdminDashboard() {
         setLoading(true);
         setError(null);
         try {
-            const url = userRole === 'HIRING_MANAGER' && userId
-                ? `${API_BASE}/api/applications?managerId=${userId}`
-                : `${API_BASE}/api/applications`;
-            const res = await fetch(url);
+            let url = `${API_BASE}/api/applications`;
+            if (userRole === 'HIRING_MANAGER' && userId) {
+                url += `?managerId=${userId}`;
+            } else if (userRole === 'QUALITY_TEAM' && userId) {
+                url += `?qualityId=${userId}`;
+            }
+            const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (!res.ok) throw new Error(`API returned ${res.status}`);
             const data = await res.json();
             setCandidates(data);
@@ -154,11 +173,31 @@ export default function AdminDashboard() {
         }
     };
 
+    const fetchQualityMembers = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/api/quality-team`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setQualityMembers(data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch quality members', err);
+        }
+    };
+
     const fetchHiringManagers = async () => {
         try {
             const [allRes, activeRes] = await Promise.all([
-                fetch(`${API_BASE}/api/hiring-managers`),
-                fetch(`${API_BASE}/api/hiring-managers/active`),
+                fetch(`${API_BASE}/api/hiring-managers`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`${API_BASE}/api/hiring-managers/active`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
             ]);
             if (allRes.ok) setHiringManagers(await allRes.json());
             if (activeRes.ok) setActiveManagers(await activeRes.json());
@@ -169,7 +208,10 @@ export default function AdminDashboard() {
         try {
             const res = await fetch(`${API_BASE}/api/applications/${candidateId}/assign`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ hiringManagerId }),
             });
             if (res.ok) {
@@ -198,7 +240,14 @@ export default function AdminDashboard() {
             };
             if (hmForm.password) body.password = hmForm.password;
 
-            const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const res = await fetch(url, { 
+                method, 
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }, 
+                body: JSON.stringify(body) 
+            });
             if (!res.ok) {
                 const data = await res.json();
                 throw new Error(data.message || 'Failed');
@@ -216,14 +265,19 @@ export default function AdminDashboard() {
     const deactivateHm = async (id: string) => {
         if (!confirm('Deactivate this hiring manager?')) return;
         try {
-            await fetch(`${API_BASE}/api/hiring-managers/${id}`, { method: 'DELETE' });
+            await fetch(`${API_BASE}/api/hiring-managers/${id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             fetchHiringManagers();
         } catch {}
     };
 
     const fetchCandidateDetail = async (id: string) => {
         try {
-            const res = await fetch(`${API_BASE}/api/applications/${id}`);
+            const res = await fetch(`${API_BASE}/api/applications/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (!res.ok) throw new Error(`API returned ${res.status}`);
             const data = await res.json();
             setSelectedCandidate(data);
@@ -238,7 +292,10 @@ export default function AdminDashboard() {
         try {
             const res = await fetch(`${API_BASE}/api/applications/${id}/status`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ status: newStatus, comment })
             });
             if (res.ok) {
@@ -256,13 +313,18 @@ export default function AdminDashboard() {
     const sendReminder = async (id: string) => {
         setSendingReminder(true);
         try {
-            const res = await fetch(`${API_BASE}/api/applications/${id}/send-reminder`, { method: 'POST' });
+            const res = await fetch(`${API_BASE}/api/applications/${id}/send-reminder`, { 
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (res.ok) {
                 await res.json();
                 alert('Reminder sent successfully!');
                 fetchCandidates();
                 if (selectedCandidate?.id === id) {
-                    const detailRes = await fetch(`${API_BASE}/api/applications/${id}`);
+                    const detailRes = await fetch(`${API_BASE}/api/applications/${id}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
                     if (detailRes.ok) setSelectedCandidate(await detailRes.json());
                 }
             } else {
@@ -278,7 +340,9 @@ export default function AdminDashboard() {
 
     const fetchAudioQs = async (subject: string) => {
         try {
-            const res = await fetch(`${API_BASE}/api/questions/audio/${subject}`);
+            const res = await fetch(`${API_BASE}/api/questions/audio/${subject}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (res.ok) setAudioQs(await res.json());
         } catch (err) {
             console.error(err);
@@ -291,7 +355,10 @@ export default function AdminDashboard() {
         try {
             const res = await fetch(`${API_BASE}/api/questions/audio`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(aqForm),
             });
             if (res.ok) {
@@ -308,7 +375,10 @@ export default function AdminDashboard() {
     const handleDeleteAq = async (id: string) => {
         if (!confirm('Delete this prompt?')) return;
         try {
-            const res = await fetch(`${API_BASE}/api/questions/audio/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${API_BASE}/api/questions/audio/${id}`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (res.ok) fetchAudioQs(aqForm.subject);
         } catch (err) {
             console.error(err);
@@ -327,6 +397,7 @@ export default function AdminDashboard() {
         try {
             const res = await fetch(`${API_BASE}/api/questions/import`, {
                 method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
             });
             const data = await res.json();
@@ -346,7 +417,10 @@ export default function AdminDashboard() {
     const clearAllQuestions = async () => {
         if (!confirm('Are you sure you want to delete ALL questions from the database?')) return;
         try {
-            const res = await fetch(`${API_BASE}/api/questions/all`, { method: 'DELETE' });
+            const res = await fetch(`${API_BASE}/api/questions/all`, { 
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (res.ok) {
                 setImportMsg({ type: 'success', text: 'All questions cleared successfully.' });
             }
@@ -356,11 +430,12 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
-        if (isAuthenticated) {
+        if (isAuthenticated && token) {
             fetchCandidates();
             if (isMasterAdmin) fetchHiringManagers();
+            if (activeTab === 'QUALITY_TEAM' && isMasterAdmin) fetchQualityMembers();
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, token, isMasterAdmin, activeTab]);
 
     const uniquePositions = Array.from(new Set(candidates.map(c => c.position))).sort();
 
@@ -404,6 +479,7 @@ export default function AdminDashboard() {
             setUserRole(data.role);
             setUserId(data.id || null);
             setUserName(data.name);
+            setToken(data.access_token);
             setIsAuthenticated(true);
         } catch (err: any) {
             setLoginError(err.message || 'Login failed');
@@ -446,12 +522,16 @@ export default function AdminDashboard() {
                         <div className="space-y-2">
                             <Input
                                 type="password"
-                                placeholder="Password"
+                                placeholder={loginEmail.toLowerCase().includes('quality') ? "4-Digit PIN" : "Password"}
                                 value={loginPassword}
                                 onChange={e => setLoginPassword(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter') handleAdminLogin(); }}
-                                className="h-12 bg-gray-50/50"
+                                className="h-12 bg-gray-50/50 tracking-widest"
+                                maxLength={loginEmail.toLowerCase().includes('quality') ? 4 : undefined}
                             />
+                            {loginEmail.toLowerCase().includes('quality') && (
+                                <p className="text-[10px] text-gray-400 text-center italic">Quality Team: Use your 4-digit security PIN</p>
+                            )}
                             {loginError && <p className="text-red-500 text-sm font-medium pl-1">{loginError}</p>}
                         </div>
                         <Button className="w-full h-12 text-lg bg-primary-600 hover:bg-primary-700 shadow-md transition-all" onClick={handleAdminLogin} disabled={loginLoading}>
@@ -567,6 +647,15 @@ export default function AdminDashboard() {
                             <User className="w-5 h-5" />
                             Hiring Managers
                             <span className="ml-auto text-xs bg-gray-200 px-2 py-0.5 rounded-full text-gray-700">{hiringManagers.length}</span>
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'QUALITY_TEAM' ? "bg-white shadow-sm border border-gray-200 text-primary-700" : "text-gray-700 hover:bg-gray-100")}
+                            onClick={() => { setActiveTab('QUALITY_TEAM'); fetchQualityMembers(); }}
+                        >
+                            <ShieldCheck className="w-5 h-5" />
+                            Quality Team
+                            <span className="ml-auto text-xs bg-gray-200 px-2 py-0.5 rounded-full text-gray-700">{qualityMembers.length}</span>
                         </Button>
                     </div>
                 )}
@@ -755,7 +844,7 @@ export default function AdminDashboard() {
                                 <h3 className="text-lg font-bold text-gray-900 mb-4">All Hiring Managers</h3>
                                 <div className="overflow-auto border rounded-xl shadow-sm">
                                     <table className="w-full text-sm">
-                                    <thead><tr className="text-left text-gray-500 bg-gray-50"><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Subject</th><th className="px-4 py-3 text-center">Auto-Assign</th><th className="px-4 py-3">Candidates</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead>
+                                    <thead><tr className="text-left text-gray-500 bg-gray-50"><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Phone</th><th className="px-4 py-3">Subject</th><th className="px-4 py-3 text-center">Auto-Assign</th><th className="px-4 py-3">Candidates</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead>
                                     <tbody>
                                         {hiringManagers.map(hm => (
                                             <tr key={hm.id} className="border-t hover:bg-gray-50 transition-colors">
@@ -770,7 +859,10 @@ export default function AdminDashboard() {
                                                                 try {
                                                                     const res = await fetch(`${API_BASE}/api/hiring-managers/${hm.id}`, {
                                                                         method: 'PUT',
-                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        headers: { 
+                                                                            'Content-Type': 'application/json',
+                                                                            'Authorization': `Bearer ${token}`
+                                                                        },
                                                                         body: JSON.stringify({ isAutoAssignEnabled: !hm.isAutoAssignEnabled }),
                                                                     });
                                                                     if (res.ok) fetchHiringManagers();
@@ -793,9 +885,156 @@ export default function AdminDashboard() {
                                                 </td>
                                             </tr>
                                         ))}
-                                        {hiringManagers.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No hiring managers yet</td></tr>}
+                                        {hiringManagers.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No hiring managers yet</td></tr>}
                                     </tbody>
                                 </table>
+                                </div>
+                            </div>
+                        </Card>
+                    ) : activeTab === 'QUALITY_TEAM' && isMasterAdmin ? (
+                        <Card className="flex-1 flex flex-col bg-white">
+                            <div className="p-6 border-b flex justify-between items-center text-sans">
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-800">Quality Team Management</h3>
+                                    <p className="text-sm text-gray-500 font-sans">Manage reviewers and their subject specialties</p>
+                                </div>
+                                <Button className="bg-primary-600 hover:bg-primary-700" onClick={() => { setIsAddQtOpen(!isAddQtOpen); setEditingQt(null); setQtForm({ name: '', email: '', pin: '', subject: 'Coding', isActive: true, isAutoAssignEnabled: false }); }}>
+                                    {isAddQtOpen ? <XCircle className="w-4 h-4 mr-2" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                                    {isAddQtOpen ? 'Close Form' : 'Add Team Member'}
+                                </Button>
+                            </div>
+                            <div className="flex-1 overflow-auto p-6 space-y-6">
+                                {isAddQtOpen && (
+                                    <div className="bg-gray-50 p-6 rounded-2xl border-2 border-primary-100 space-y-4 animate-in slide-in-from-top-4 duration-300">
+                                        <h4 className="font-bold text-lg text-gray-800">{editingQt ? 'Edit Member' : 'Register New Quality Member'}</h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-gray-600 ml-1">Full Name</label>
+                                                <Input placeholder="e.g. John Doe" value={qtForm.name} onChange={e => setQtForm({...qtForm, name: e.target.value})} />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-gray-600 ml-1">Email Address</label>
+                                                <Input placeholder="name@company.com" value={qtForm.email} onChange={e => setQtForm({...qtForm, email: e.target.value})} />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-gray-600 ml-1">4-Digit Access PIN</label>
+                                                <Input placeholder="xxxx" maxLength={4} value={qtForm.pin} onChange={e => setQtForm({...qtForm, pin: e.target.value})} />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs font-semibold text-gray-600 ml-1">Subject Specialty</label>
+                                                <select className="flex h-11 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" value={qtForm.subject} onChange={e => setQtForm({...qtForm, subject: e.target.value})}>
+                                                    <option value="Coding">Coding</option>
+                                                    <option value="Math">Math</option>
+                                                    <option value="Science">Science</option>
+                                                    <option value="English">English</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 pt-1">
+                                            <div className={cn("w-10 h-5 rounded-full relative transition-colors cursor-pointer", qtForm.isAutoAssignEnabled ? "bg-primary-600" : "bg-gray-200")}
+                                                onClick={() => setQtForm({...qtForm, isAutoAssignEnabled: !qtForm.isAutoAssignEnabled})}
+                                            >
+                                                <div className={cn("absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform", qtForm.isAutoAssignEnabled ? "translate-x-5" : "")} />
+                                            </div>
+                                            <label className="text-sm font-medium text-gray-700 cursor-pointer" onClick={() => setQtForm({...qtForm, isAutoAssignEnabled: !qtForm.isAutoAssignEnabled})}>
+                                                Enable Auto Assign
+                                            </label>
+                                        </div>
+                                        <div className="flex justify-end gap-3 pt-2">
+                                            <Button variant="ghost" onClick={() => setIsAddQtOpen(false)}>Cancel</Button>
+                                            <Button className="bg-primary-600 hover:bg-primary-700 font-bold px-8" onClick={async () => {
+                                                const url = editingQt ? `${API_BASE}/api/quality-team/${editingQt}` : `${API_BASE}/api/quality-team`;
+                                                const method = editingQt ? 'PATCH' : 'POST';
+                                                try {
+                                                    const res = await fetch(url, {
+                                                        method,
+                                                        headers: { 
+                                                            'Content-Type': 'application/json',
+                                                            'Authorization': `Bearer ${token}`
+                                                        },
+                                                        body: JSON.stringify(qtForm),
+                                                    });
+                                                    if (res.ok) {
+                                                        setQtMsg({ type: 'success', text: `Quality member ${editingQt ? 'updated' : 'added'} successfully` });
+                                                        setIsAddQtOpen(false);
+                                                        fetchQualityMembers();
+                                                    } else {
+                                                        const err = await res.json();
+                                                        setQtMsg({ type: 'error', text: err.message || 'Something went wrong' });
+                                                    }
+                                                } catch {
+                                                    setQtMsg({ type: 'error', text: 'Network error' });
+                                                }
+                                            }}>{editingQt ? 'Update' : 'Confirm'} Details</Button>
+                                        </div>
+                                        {qtMsg && <div className={cn("p-4 rounded-xl flex items-center gap-3", qtMsg.type === 'success' ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100")}>
+                                            {qtMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                                            <span className="text-sm font-medium">{qtMsg.text}</span>
+                                        </div>}
+                                    </div>
+                                )}
+                                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                                    <table className="w-full text-left text-sm whitespace-nowrap">
+                                        <thead className="bg-gray-50 border-b text-gray-500 font-semibold">
+                                            <tr>
+                                                <th className="px-6 py-4">Reviewer</th>
+                                                <th className="px-6 py-4">Specialty</th>
+                                                <th className="px-6 py-4 text-center">Auto Assign</th>
+                                                <th className="px-6 py-4">Status</th>
+                                                <th className="px-6 py-4">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {qualityMembers.map(m => (
+                                                <tr key={m.id} className="hover:bg-gray-50/50 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold">
+                                                                {m.name.charAt(0)}
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-bold text-gray-900">{m.name}</div>
+                                                                <div className="text-xs text-gray-500">{m.email}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-700 font-medium">{m.subject}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <div className="flex justify-center">
+                                                            <div className={cn("w-10 h-5 rounded-full relative transition-colors cursor-pointer", m.isAutoAssignEnabled ? "bg-primary-600" : "bg-gray-200")}
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        const res = await fetch(`${API_BASE}/api/quality-team/${m.id}`, {
+                                                                            method: 'PATCH',
+                                                                            headers: { 
+                                                                                'Content-Type': 'application/json',
+                                                                                'Authorization': `Bearer ${token}`
+                                                                            },
+                                                                            body: JSON.stringify({ isAutoAssignEnabled: !m.isAutoAssignEnabled }),
+                                                                        });
+                                                                        if (res.ok) fetchQualityMembers();
+                                                                    } catch {}
+                                                                }}
+                                                            >
+                                                                <div className={cn("absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform", m.isAutoAssignEnabled ? "translate-x-5" : "")} />
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={cn("px-2.5 py-1 rounded-full text-xs font-bold", m.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
+                                                            {m.isActive ? 'Active' : 'Inactive'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <Button size="sm" variant="outline" className="text-primary-700 border-primary-100 hover:bg-primary-50" onClick={() => { setEditingQt(m.id); setQtForm({ name: m.name, email: m.email, pin: '', subject: m.subject, isActive: m.isActive, isAutoAssignEnabled: m.isAutoAssignEnabled }); setIsAddQtOpen(true); }}>Edit</Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {qualityMembers.length === 0 && <tr><td colSpan={5} className="p-12 text-center text-gray-400">No Quality Team members found. Click 'Add Team Member' to start.</td></tr>}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </Card>
@@ -1018,18 +1257,49 @@ export default function AdminDashboard() {
                                         </span>
                                     </div>
                                     {isMasterAdmin && (
-                                        <div className="mt-3 flex items-center gap-2">
-                                            <span className="text-xs text-gray-500 font-medium">Assign to:</span>
-                                            <select
-                                                className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
-                                                value={selectedCandidate.hiringManagerId || ''}
-                                                onChange={e => assignManager(selectedCandidate.id, e.target.value || null)}
-                                            >
-                                                <option value="">Unassigned</option>
-                                                {activeManagers.map(m => (
-                                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                                ))}
-                                            </select>
+                                        <div className="mt-3 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-500 font-medium w-16">Vertical:</span>
+                                                <select
+                                                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
+                                                    value={selectedCandidate.position}
+                                                    onChange={async (e) => {
+                                                        const newPosition = e.target.value;
+                                                        try {
+                                                            const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/position`, {
+                                                                method: 'POST',
+                                                                headers: { 
+                                                                    'Content-Type': 'application/json',
+                                                                    'Authorization': `Bearer ${token}`
+                                                                },
+                                                                body: JSON.stringify({ position: newPosition }),
+                                                            });
+                                                            if (res.ok) {
+                                                                setSelectedCandidate({ ...selectedCandidate, position: newPosition });
+                                                                fetchCandidates();
+                                                            }
+                                                        } catch {}
+                                                    }}
+                                                >
+                                                    <option value="Coding">Coding</option>
+                                                    <option value="Math">Math</option>
+                                                    <option value="Science">Science</option>
+                                                    <option value="English">English</option>
+                                                </select>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-500 font-medium w-16">Assign to:</span>
+                                                <select
+                                                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
+                                                    value={selectedCandidate.hiringManagerId || ''}
+                                                    onChange={e => assignManager(selectedCandidate.id, e.target.value || null)}
+                                                >
+                                                    <option value="">Unassigned</option>
+                                                    {activeManagers.map(m => (
+                                                        <option key={m.id} value={m.id}>{m.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
                                     )}
                                 </CardHeader>
@@ -1283,23 +1553,176 @@ export default function AdminDashboard() {
                                         <div className={cn(
                                             "border p-4 rounded-xl space-y-3",
                                             selectedCandidate.status === 'MANUAL_REVIEW' ? "bg-yellow-50 border-yellow-200" : "bg-gray-50 border-gray-200"
-                                        )}>
-                                            <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wider">Admin Actions</h4>
-                                            <div className="flex gap-3">
-                                                <Button
-                                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                                                    onClick={() => updateStatus(selectedCandidate.id, 'SELECTED')}
+                                         )}>
+                                             <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wider">Admin Actions</h4>
+                                             <div className="flex gap-3">
+                                                 <Button
+                                                     className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                                     onClick={() => updateStatus(selectedCandidate.id, 'SELECTED')}
+                                                 >
+                                                     <CheckCircle2 className="w-4 h-4 mr-1" />
+                                                     Select
+                                                 </Button>
+                                                 <Button
+                                                     variant="outline"
+                                                     className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2"
+                                                     onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL')}
+                                                 >
+                                                     <XCircle className="w-4 h-4 mr-1" />
+                                                     Reject
+                                                 </Button>
+                                             </div>
+                                         </div>
+                                     )}
+
+                                    {/* Quality Review Submission (Hiring Manager / Master Admin) */}
+                                    {(isMasterAdmin || userRole === 'HIRING_MANAGER') && (selectedCandidate.status === 'SELECTED' || selectedCandidate.status === 'QUALITY_REVIEW_PENDING') && (
+                                        <div className="space-y-3 pt-4 border-t border-gray-100">
+                                            <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                                <ShieldCheck className="w-5 h-5 text-orange-600" />
+                                                Quality Review Submission
+                                            </h4>
+                                            <div className="bg-orange-50/50 border border-orange-100 p-4 rounded-xl space-y-4 shadow-sm">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-gray-600">Review/Recording URL</label>
+                                                    <Input 
+                                                        placeholder="Paste link here..." 
+                                                        value={selectedCandidate.qualityReviewLink || ''}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            setSelectedCandidate({...selectedCandidate, qualityReviewLink: val});
+                                                        }}
+                                                        className="bg-white h-10 border-orange-200 focus:ring-orange-500"
+                                                    />
+                                                </div>
+                                                <Button 
+                                                    className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold h-10 shadow-md" 
+                                                    onClick={async () => {
+                                                        if (!selectedCandidate.qualityReviewLink) return alert('Please provide a review link');
+                                                        try {
+                                                            const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-submit`, {
+                                                                method: 'POST',
+                                                                headers: { 
+                                                                    'Content-Type': 'application/json',
+                                                                    'Authorization': `Bearer ${token}`
+                                                                },
+                                                                body: JSON.stringify({ link: selectedCandidate.qualityReviewLink }),
+                                                            });
+                                                            if (res.ok) {
+                                                                alert('Submitted for Quality Review! Status updated.');
+                                                                fetchCandidates();
+                                                            } else {
+                                                                alert('Failed to submit link.');
+                                                            }
+                                                        } catch (err) {
+                                                            alert('Network error');
+                                                        }
+                                                    }}
                                                 >
-                                                    <CheckCircle2 className="w-4 h-4 mr-1" />
-                                                    Select
+                                                    {selectedCandidate.status === 'QUALITY_REVIEW_PENDING' ? 'Update Link' : 'Submit for Quality Review'}
                                                 </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2"
-                                                    onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL')}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Quality Review Section for Quality Team Role */}
+                                    {userRole === 'QUALITY_TEAM' && (
+                                        <div className="space-y-4 pt-4 border-t border-gray-200">
+                                            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                                <ShieldCheck className="w-5 h-5 text-orange-600" />
+                                                Quality Assessment Rubric
+                                            </h4>
+                                            
+                                            {selectedCandidate.qualityReviewLink && (
+                                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between items-center">
+                                                    <span className="text-xs font-semibold text-blue-800">Review Link:</span>
+                                                    <Button size="sm" variant="ghost" className="text-blue-700 hover:bg-blue-100 h-7" onClick={() => window.open(selectedCandidate.qualityReviewLink!, '_blank')}>Open Review Link</Button>
+                                                </div>
+                                            )}
+
+                                            <div className="space-y-4">
+                                                {[
+                                                    { id: 'subjectKnowledge', label: 'Subject Knowledge' },
+                                                    { id: 'studentEngagement', label: 'Student Engagement' },
+                                                    { id: 'energyLevel', label: 'Energy Level & Confidence' },
+                                                    { id: 'communication', label: 'Communication Skills' },
+                                                ].map(rubric => (
+                                                    <div key={rubric.id} className="space-y-2">
+                                                        <div className="flex justify-between text-xs font-medium text-gray-700">
+                                                            <span>{rubric.label}</span>
+                                                            <span>{(selectedCandidate.qualityReviewScore?.[rubric.id] || 0)}/5</span>
+                                                        </div>
+                                                        <div className="flex gap-1 justify-between">
+                                                            {[1, 2, 3, 4, 5].map(val => (
+                                                                <Button 
+                                                                    key={val} 
+                                                                    variant="ghost" 
+                                                                    className={cn(
+                                                                        "flex-1 h-8 text-xs rounded-md border",
+                                                                        (selectedCandidate.qualityReviewScore?.[rubric.id] || 0) === val ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                                                                    )}
+                                                                    onClick={() => {
+                                                                        const newScores = { ...selectedCandidate.qualityReviewScore, [rubric.id]: val };
+                                                                        setSelectedCandidate({...selectedCandidate, qualityReviewScore: newScores});
+                                                                    }}
+                                                                >
+                                                                    {val}
+                                                                </Button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="pt-4 flex gap-3">
+                                                <Button 
+                                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white h-11"
+                                                    onClick={async () => {
+                                                        const scores = selectedCandidate.qualityReviewScore;
+                                                        if (!scores || Object.keys(scores).length < 4) return alert('Please rate all rubrics');
+                                                        try {
+                                                            const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-finalize`, {
+                                                                method: 'POST',
+                                                                headers: { 
+                                                                    'Content-Type': 'application/json',
+                                                                    'Authorization': `Bearer ${token}`
+                                                                },
+                                                                body: JSON.stringify({ qualityId: userId, scores, decision: 'SELECTED_FOR_TRAINING' }),
+                                                            });
+                                                            if (res.ok) {
+                                                                alert('Candidate selected for training');
+                                                                fetchCandidates();
+                                                                setSelectedCandidate(null);
+                                                            }
+                                                        } catch { alert('Update failed'); }
+                                                    }}
                                                 >
-                                                    <XCircle className="w-4 h-4 mr-1" />
-                                                    Reject
+                                                    Select for Training
+                                                </Button>
+                                                <Button 
+                                                    variant="outline" 
+                                                    className="flex-1 border-red-200 text-red-700 hover:bg-red-50 h-11 border-2"
+                                                    onClick={async () => {
+                                                        const scores = selectedCandidate.qualityReviewScore;
+                                                        if (!scores || Object.keys(scores).length < 4) return alert('Please rate all rubrics');
+                                                        try {
+                                                            const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-finalize`, {
+                                                                method: 'POST',
+                                                                headers: { 
+                                                                    'Content-Type': 'application/json',
+                                                                    'Authorization': `Bearer ${token}`
+                                                                },
+                                                                body: JSON.stringify({ qualityId: userId, scores, decision: 'REJECTED_FINAL' }),
+                                                            });
+                                                            if (res.ok) {
+                                                                alert('Candidate rejected');
+                                                                fetchCandidates();
+                                                                setSelectedCandidate(null);
+                                                            }
+                                                        } catch { alert('Update failed'); }
+                                                    }}
+                                                >
+                                                    Reject Candidate
                                                 </Button>
                                             </div>
                                         </div>

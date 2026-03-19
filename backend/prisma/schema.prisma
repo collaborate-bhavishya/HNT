@@ -20,7 +20,21 @@ model HiringManager {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
   subject             String      @default("Coding")
-  candidates Candidate[]
+  candidates  Candidate[]
+}
+
+model QualityTeam {
+  id                  String      @id @default(uuid())
+  name                String
+  email               String      @unique
+  pin                 String      // 4-digit PIN (encrypted)
+  subject             String      @default("Coding")
+  isActive            Boolean     @default(true)
+  isAutoAssignEnabled Boolean     @default(false)
+  lastAssignedAt      DateTime    @default(now())
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  candidates          Candidate[]
 }
 
 model Candidate {
@@ -49,6 +63,13 @@ model Candidate {
   pin               String?
   assessments       Assessment[]
   hiringManager     HiringManager? @relation(fields: [hiringManagerId], references: [id])
+  
+  // Quality Review Fields
+  qualityReviewLink   String?
+  qualityReviewScore  Json?    // Rubrics: { subjectKnowledge: 1-10, engagement: 1-10, energy: 1-10, communication: 1-10 }
+  qualityReviewResult String?  // SELECTED_FOR_TRAINING | REJECTED
+  qualityTeamId       String?
+  qualityTeam         QualityTeam? @relation(fields: [qualityTeamId], references: [id])
 }
 
 model Assessment {

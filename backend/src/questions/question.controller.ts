@@ -1,9 +1,11 @@
-import { Controller, Post, Get, Param, UploadedFile, UseInterceptors, BadRequestException, Delete, Body } from '@nestjs/common';
+import { Controller, Post, Get, Param, UploadedFile, UseInterceptors, BadRequestException, Delete, Body, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { AuthGuard } from '@nestjs/passport';
 import { QuestionService } from './question.service';
 import type { Express } from 'express';
 
 @Controller('api/questions')
+@UseGuards(AuthGuard('jwt'))
 export class QuestionController {
     constructor(private readonly questionService: QuestionService) { }
 

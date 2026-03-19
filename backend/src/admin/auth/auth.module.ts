@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { HiringManagersModule } from '../../hiring-managers/hiring-managers.module';
+import { QualityTeamModule } from '../../quality-team/quality-team.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { HiringManagersModule } from '../../hiring-managers/hiring-managers.modu
       signOptions: { expiresIn: '24h' },
     }),
     HiringManagersModule,
+    QualityTeamModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

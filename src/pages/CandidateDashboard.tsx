@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, User, CheckCircle2, Clock, CircleDot, PlayCircle, BookOpen,
   ChevronRight, Lock, ExternalLink, ChevronDown, ChevronUp,
-  ClipboardCheck, FileStack, Mic, CalendarDays, Video, XCircle, AlertCircle
+  ClipboardCheck, FileStack, Mic, CalendarDays, Video, XCircle
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';

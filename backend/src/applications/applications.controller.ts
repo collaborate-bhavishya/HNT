@@ -1,5 +1,6 @@
-import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Param, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Param, Query, BadRequestException, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { AuthGuard } from '@nestjs/passport';
 import { ApplicationsService } from './applications.service';
 import { CreateApplicationDto } from './create-application.dto';
 
@@ -20,6 +21,7 @@ export class ApplicationsController {
     }
 
     @Post(':id/status')
+    @UseGuards(AuthGuard('jwt'))
     async updateCandidateStatus(
         @Param('id') id: string,
         @Body('status') status: string,
@@ -29,25 +31,61 @@ export class ApplicationsController {
     }
 
     @Get()
-    async getAllApplications(@Query('managerId') managerId?: string) {
+    @UseGuards(AuthGuard('jwt'))
+    async getAllApplications(@Query('managerId') managerId?: string, @Query('qualityId') qualityId?: string) {
+        if (qualityId) {
+            return this.applicationsService.getAllCandidatesByQualityMember(qualityId);
+        }
         return this.applicationsService.getAllCandidates(managerId);
     }
 
     @Get(':id')
+    @UseGuards(AuthGuard('jwt'))
     async getCandidateById(@Param('id') id: string) {
         return this.applicationsService.getCandidateById(id);
     }
 
     @Post(':id/send-reminder')
+    @UseGuards(AuthGuard('jwt'))
     async sendReminder(@Param('id') id: string) {
         return this.applicationsService.sendAssessmentReminder(id);
     }
 
     @Post(':id/assign')
+    @UseGuards(AuthGuard('jwt'))
     async assignHiringManager(
         @Param('id') id: string,
         @Body('hiringManagerId') hiringManagerId: string | null,
     ) {
         return this.applicationsService.assignHiringManager(id, hiringManagerId);
+    }
+
+    @Post(':id/position')
+    @UseGuards(AuthGuard('jwt'))
+    async updatePosition(
+        @Param('id') id: string,
+        @Body('position') position: string,
+    ) {
+        return this.applicationsService.updateCandidatePosition(id, position);
+    }
+
+    @Post(':id/quality-review-submit')
+    @UseGuards(AuthGuard('jwt'))
+    async submitQualityReviewLink(
+        @Param('id') id: string,
+        @Body('link') link: string,
+    ) {
+        return this.applicationsService.submitQualityReviewLink(id, link);
+    }
+
+    @Post(':id/quality-review-finalize')
+    @UseGuards(AuthGuard('jwt'))
+    async finalizeQualityReview(
+        @Param('id') id: string,
+        @Body('qualityId') qualityId: string,
+        @Body('scores') scores: any,
+        @Body('decision') decision: string,
+    ) {
+        return this.applicationsService.finalizeQualityReview(id, qualityId, scores, decision);
     }
 }
