@@ -76,7 +76,7 @@ export default function LandingPage() {
                             Global Reach
                         </a>
                         <Button
-                            onClick={() => navigate('/admin')}
+                            onClick={() => navigate('/candidate-login')}
                             className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-200 rounded-full px-8"
                         >
                             Login
