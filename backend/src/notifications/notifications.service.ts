@@ -83,7 +83,7 @@ export class NotificationsService {
         });
     }
 
-    async sendAssessmentLinkEmail(email: string, link: string) {
+    async sendAssessmentLinkEmail(email: string, link: string, pin?: string) {
         const body = `
           <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6">Dear Applicant,</p>
           <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Great news! Your application has been shortlisted, and we'd like to invite you to the next stage of our hiring process — a <strong>Technical Assessment</strong>.</p>
@@ -95,6 +95,15 @@ export class NotificationsService {
               <li>Total duration: approximately 20 minutes</li>
             </ul>
           </div>
+          ${pin ? `
+          <div style="margin:24px 0;padding:20px;background-color:#fef3c7;border-radius:8px;border-left:4px solid #f59e0b">
+            <p style="margin:0 0 8px;color:#92400e;font-size:14px;font-weight:600">Candidate Dashboard Access:</p>
+            <p style="margin:0;color:#92400e;font-size:14px;line-height:1.6">You can check your progress at any time using our Candidate Dashboard. You can access it from our website using the portal login.</p>
+             <ul style="margin:8px 0 0;padding:0 0 0 18px;color:#92400e;font-size:14px;line-height:1.8">
+               <li><strong>Email:</strong> ${email}</li>
+               <li><strong>Login PIN:</strong> ${pin}</li>
+             </ul>
+          </div>` : ''}
           <div style="text-align:center;margin:28px 0">
             <a href="${link}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.3px">Start Assessment</a>
           </div>
@@ -106,7 +115,7 @@ export class NotificationsService {
             from: this.getFrom(),
             to: email,
             subject: `You're Shortlisted! Complete Your Assessment — ${this.companyName}`,
-            text: `Congratulations! Your application has been shortlisted. Please complete your technical assessment using this link: ${link}. The link expires in 72 hours. Good luck! — ${this.companyName} Hiring Team`,
+            text: `Congratulations! Your application has been shortlisted. Please complete your technical assessment using this link: ${link}. The link expires in 72 hours. ${pin ? `Your Dashboard PIN is: ${pin}. ` : ''}Good luck! — ${this.companyName} Hiring Team`,
             html: this.wrapInTemplate(body),
         });
     }

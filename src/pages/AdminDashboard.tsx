@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
-import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail } from 'lucide-react';
+import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail, LayoutDashboard } from 'lucide-react';
 import { Input } from '../components/ui/Input';
+import { CandidateDashboardConfigView } from '../components/CandidateDashboardConfigView';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -84,7 +85,8 @@ interface HiringManagerInfo {
     phone?: string | null;
     subject?: string;
     isActive?: boolean;
-    createdAt?: string;
+    isAutoAssignEnabled?: boolean;
+    lastAssignedAt?: string;
     candidateCount?: number;
 }
 
@@ -112,13 +114,14 @@ export default function AdminDashboard() {
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const [positionFilter, setPositionFilter] = useState<string>('ALL');
-    const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS' | 'HIRING_MANAGERS'>('CANDIDATES');
+    const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS' | 'HIRING_MANAGERS' | 'DASHBOARD_CONFIG'>('CANDIDATES');
 
     const [hiringManagers, setHiringManagers] = useState<HiringManagerInfo[]>([]);
     const [activeManagers, setActiveManagers] = useState<HiringManagerInfo[]>([]);
-    const [hmForm, setHmForm] = useState({ name: '', email: '', password: '', phone: '', subject: 'Coding' });
+    const [hmForm, setHmForm] = useState({ name: '', email: '', password: '', phone: '', subject: 'Coding', isAutoAssignEnabled: false });
     const [editingHm, setEditingHm] = useState<string | null>(null);
     const [hmMsg, setHmMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [isAddHmOpen, setIsAddHmOpen] = useState(false);
 
     const isMasterAdmin = userRole === 'MASTER_ADMIN';
 
@@ -186,7 +189,13 @@ export default function AdminDashboard() {
                 ? `${API_BASE}/api/hiring-managers/${editingHm}`
                 : `${API_BASE}/api/hiring-managers`;
             const method = editingHm ? 'PUT' : 'POST';
-            const body: any = { name: hmForm.name, email: hmForm.email, phone: hmForm.phone || undefined, subject: hmForm.subject };
+            const body: any = { 
+                name: hmForm.name, 
+                email: hmForm.email, 
+                phone: hmForm.phone || undefined, 
+                subject: hmForm.subject,
+                isAutoAssignEnabled: hmForm.isAutoAssignEnabled
+            };
             if (hmForm.password) body.password = hmForm.password;
 
             const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -195,8 +204,9 @@ export default function AdminDashboard() {
                 throw new Error(data.message || 'Failed');
             }
             setHmMsg({ type: 'success', text: editingHm ? 'Updated successfully' : 'Hiring manager created' });
-            setHmForm({ name: '', email: '', password: '', phone: '', subject: 'Coding' });
+            setHmForm({ name: '', email: '', password: '', phone: '', subject: 'Coding', isAutoAssignEnabled: false });
             setEditingHm(null);
+            setIsAddHmOpen(false);
             fetchHiringManagers();
         } catch (err: any) {
             setHmMsg({ type: 'error', text: err.message });
@@ -543,6 +553,14 @@ export default function AdminDashboard() {
                         </Button>
                         <Button
                             variant="ghost"
+                            className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'DASHBOARD_CONFIG' ? "bg-white shadow-sm border border-gray-200 text-primary-700" : "text-gray-700 hover:bg-gray-100")}
+                            onClick={() => setActiveTab('DASHBOARD_CONFIG')}
+                        >
+                            <LayoutDashboard className="w-5 h-5" />
+                            Dashboard Config
+                        </Button>
+                        <Button
+                            variant="ghost"
                             className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'HIRING_MANAGERS' ? "bg-white shadow-sm border border-gray-200 text-primary-700" : "text-gray-700 hover:bg-gray-100")}
                             onClick={() => { setActiveTab('HIRING_MANAGERS'); fetchHiringManagers(); }}
                         >
@@ -569,10 +587,10 @@ export default function AdminDashboard() {
                 <header className="bg-white border-b px-8 py-4 flex justify-between items-center text-sans">
                     <div>
                         <h2 className="text-2xl font-semibold text-gray-800">
-                            {activeTab === 'CANDIDATES' ? 'Candidates' : activeTab === 'HIRING_MANAGERS' ? 'Hiring Managers' : 'Question Bank'}
+                            {activeTab === 'CANDIDATES' ? 'Candidates' : activeTab === 'HIRING_MANAGERS' ? 'Hiring Managers' : activeTab === 'DASHBOARD_CONFIG' ? 'Candidate Dashboard Configuration' : 'Question Bank'}
                         </h2>
                         <p className="text-sm text-gray-500">
-                            {activeTab === 'CANDIDATES' ? `${filteredCandidates.length} applicants in view` : activeTab === 'HIRING_MANAGERS' ? 'Manage your hiring team' : 'Manage your technical question pool'}
+                            {activeTab === 'CANDIDATES' ? `${filteredCandidates.length} applicants in view` : activeTab === 'HIRING_MANAGERS' ? 'Manage your hiring team' : activeTab === 'DASHBOARD_CONFIG' ? 'Map subject configurations' : 'Manage your technical question pool'}
                         </p>
                     </div>
                     {activeTab === 'CANDIDATES' && (
@@ -676,38 +694,68 @@ export default function AdminDashboard() {
                             )}
                         </Card>
                     ) : activeTab === 'HIRING_MANAGERS' && isMasterAdmin ? (
-                        <Card className="flex-1 flex flex-col bg-white p-8 space-y-8">
-                            <div className="max-w-2xl space-y-6">
-                                <h3 className="text-xl font-bold text-gray-900">{editingHm ? 'Edit Hiring Manager' : 'Add New Hiring Manager'}</h3>
-                                {hmMsg && <div className={`text-sm px-3 py-2 rounded ${hmMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{hmMsg.text}</div>}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Input placeholder="Full Name" value={hmForm.name} onChange={e => setHmForm(f => ({ ...f, name: e.target.value }))} />
-                                    <Input placeholder="Email" type="email" value={hmForm.email} onChange={e => setHmForm(f => ({ ...f, email: e.target.value }))} />
-                                    <Input placeholder={editingHm ? 'New Password (leave blank to keep)' : 'Password'} type="password" value={hmForm.password} onChange={e => setHmForm(f => ({ ...f, password: e.target.value }))} />
-                                    <Input placeholder="Phone (optional)" value={hmForm.phone} onChange={e => setHmForm(f => ({ ...f, phone: e.target.value }))} />
-                                    <select 
-                                        className="h-10 border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 rounded-md"
-                                        value={hmForm.subject}
-                                        onChange={e => setHmForm(f => ({ ...f, subject: e.target.value }))}
-                                    >
-                                        <option value="Coding">Coding</option>
-                                        <option value="Math">Math</option>
-                                        <option value="Science">Science</option>
-                                        <option value="English">English</option>
-                                        <option value="Robotics">Robotics</option>
-                                        <option value="Rubik's Cube">Rubik's Cube</option>
-                                        <option value="Chess">Chess</option>
-                                    </select>
+                        <Card className="flex-1 flex flex-col bg-white p-8 space-y-8 overflow-hidden min-h-0">
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-xl font-bold text-gray-900">{editingHm ? 'Edit Hiring Manager' : 'Add New Hiring Manager'}</h3>
+                                    {!editingHm && (
+                                        <Button 
+                                            variant={isAddHmOpen ? "outline" : "default"} 
+                                            size="sm" 
+                                            onClick={() => setIsAddHmOpen(!isAddHmOpen)}
+                                            className={cn(!isAddHmOpen && "bg-primary-600 hover:bg-primary-700")}
+                                        >
+                                            {isAddHmOpen ? 'Close Form' : 'Add Manager'}
+                                        </Button>
+                                    )}
                                 </div>
-                                <div className="flex gap-3">
-                                    <Button onClick={createOrUpdateHm} className="bg-primary-600 hover:bg-primary-700">{editingHm ? 'Update' : 'Add Manager'}</Button>
-                                    {editingHm && <Button variant="outline" onClick={() => { setEditingHm(null); setHmForm({ name: '', email: '', password: '', phone: '', subject: 'Coding' }); }}>Cancel</Button>}
-                                </div>
+
+                                {(isAddHmOpen || editingHm) && (
+                                    <div className="max-w-2xl space-y-6 p-6 bg-gray-50 border rounded-2xl animate-in slide-in-from-top-4 duration-300">
+                                        {hmMsg && <div className={`text-sm px-3 py-2 rounded ${hmMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{hmMsg.text}</div>}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <Input placeholder="Full Name" value={hmForm.name} onChange={e => setHmForm(f => ({ ...f, name: e.target.value }))} />
+                                            <Input placeholder="Email" type="email" value={hmForm.email} onChange={e => setHmForm(f => ({ ...f, email: e.target.value }))} />
+                                            <Input placeholder={editingHm ? 'New Password (leave blank to keep)' : 'Password'} type="password" value={hmForm.password} onChange={e => setHmForm(f => ({ ...f, password: e.target.value }))} />
+                                            <Input placeholder="Phone (optional)" value={hmForm.phone} onChange={e => setHmForm(f => ({ ...f, phone: e.target.value }))} />
+                                            <select 
+                                                className="h-10 border border-input bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 rounded-md shadow-sm"
+                                                value={hmForm.subject}
+                                                onChange={e => setHmForm(f => ({ ...f, subject: e.target.value }))}
+                                            >
+                                                <option value="Coding">Coding</option>
+                                                <option value="Math">Math</option>
+                                                <option value="Science">Science</option>
+                                                <option value="English">English</option>
+                                                <option value="Robotics">Robotics</option>
+                                                <option value="Rubik's Cube">Rubik's Cube</option>
+                                                <option value="Chess">Chess</option>
+                                            </select>
+                                            <div className="flex items-center gap-3 px-3">
+                                                <input 
+                                                    type="checkbox" 
+                                                    id="isAutoAssignEnabled"
+                                                    className="w-4 h-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                                                    checked={hmForm.isAutoAssignEnabled}
+                                                    onChange={e => setHmForm(f => ({ ...f, isAutoAssignEnabled: e.target.checked }))}
+                                                />
+                                                <label htmlFor="isAutoAssignEnabled" className="text-sm font-medium text-gray-700 cursor-pointer">
+                                                    Enable Auto-Assign (Round Robin)
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <Button onClick={createOrUpdateHm} className="bg-primary-600 hover:bg-primary-700">{editingHm ? 'Update' : 'Add Manager'}</Button>
+                                            {(editingHm || isAddHmOpen) && <Button variant="outline" onClick={() => { setEditingHm(null); setIsAddHmOpen(false); setHmForm({ name: '', email: '', password: '', phone: '', subject: 'Coding', isAutoAssignEnabled: false }); }}>Cancel</Button>}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <div className="border-t pt-6">
+                            <div className="border-t pt-6 flex-1 flex flex-col min-h-0">
                                 <h3 className="text-lg font-bold text-gray-900 mb-4">All Hiring Managers</h3>
-                                <table className="w-full text-sm">
-                                    <thead><tr className="text-left text-gray-500 bg-gray-50"><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Phone</th><th className="px-4 py-3">Subject</th><th className="px-4 py-3">Candidates</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead>
+                                <div className="overflow-auto border rounded-xl shadow-sm">
+                                    <table className="w-full text-sm">
+                                    <thead><tr className="text-left text-gray-500 bg-gray-50"><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Subject</th><th className="px-4 py-3 text-center">Auto-Assign</th><th className="px-4 py-3">Candidates</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Actions</th></tr></thead>
                                     <tbody>
                                         {hiringManagers.map(hm => (
                                             <tr key={hm.id} className="border-t hover:bg-gray-50 transition-colors">
@@ -715,6 +763,24 @@ export default function AdminDashboard() {
                                                 <td className="px-4 py-3 text-gray-500">{hm.email}</td>
                                                 <td className="px-4 py-3 text-gray-500">{hm.phone || '-'}</td>
                                                 <td className="px-4 py-3 text-gray-700 font-medium">{hm.subject || 'Coding'}</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <div className="flex justify-center">
+                                                        <div className={cn("w-10 h-5 rounded-full relative transition-colors cursor-pointer", hm.isAutoAssignEnabled ? "bg-primary-600" : "bg-gray-200")}
+                                                            onClick={async () => {
+                                                                try {
+                                                                    const res = await fetch(`${API_BASE}/api/hiring-managers/${hm.id}`, {
+                                                                        method: 'PUT',
+                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        body: JSON.stringify({ isAutoAssignEnabled: !hm.isAutoAssignEnabled }),
+                                                                    });
+                                                                    if (res.ok) fetchHiringManagers();
+                                                                } catch {}
+                                                            }}
+                                                        >
+                                                            <div className={cn("absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform", hm.isAutoAssignEnabled ? "translate-x-5" : "")} />
+                                                        </div>
+                                                    </div>
+                                                </td>
                                                 <td className="px-4 py-3">{hm.candidateCount || 0}</td>
                                                 <td className="px-4 py-3">
                                                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${hm.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -722,16 +788,19 @@ export default function AdminDashboard() {
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3 flex gap-2">
-                                                    <Button size="sm" variant="outline" onClick={() => { setEditingHm(hm.id); setHmForm({ name: hm.name, email: hm.email, password: '', phone: hm.phone || '', subject: hm.subject || 'Coding' }); }}>Edit</Button>
+                                                    <Button size="sm" variant="outline" onClick={() => { setEditingHm(hm.id); setHmForm({ name: hm.name, email: hm.email, password: '', phone: hm.phone || '', subject: hm.subject || 'Coding', isAutoAssignEnabled: !!hm.isAutoAssignEnabled }); }}>Edit</Button>
                                                     {hm.isActive && <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => deactivateHm(hm.id)}>Deactivate</Button>}
                                                 </td>
                                             </tr>
                                         ))}
-                                        {hiringManagers.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No hiring managers yet</td></tr>}
+                                        {hiringManagers.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No hiring managers yet</td></tr>}
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                         </Card>
+                    ) : activeTab === 'DASHBOARD_CONFIG' && isMasterAdmin ? (
+                        <CandidateDashboardConfigView />
                     ) : !isQuestionBankAuthenticated ? (
                         <Card className="flex-1 flex flex-col items-center justify-center bg-white p-8">
                             <div className="max-w-md w-full space-y-6 text-center animate-in fade-in zoom-in duration-300">
@@ -915,358 +984,360 @@ export default function AdminDashboard() {
                         </div>
                     )}
 
-                    {/* Detail View */}
-                    {selectedCandidate ? (
-                        <Card className="w-[480px] shadow-lg flex flex-col animate-in slide-in-from-right-8 duration-300">
-                            <CardHeader className="border-b bg-gray-50 relative pb-4">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
-                                    onClick={() => setSelectedCandidate(null)}
-                                >
-                                    <XCircle className="w-5 h-5" />
-                                </Button>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-2xl font-bold border-2 border-primary-200">
-                                        {selectedCandidate.firstName.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <CardTitle className="text-xl">{selectedCandidate.firstName} {selectedCandidate.lastName}</CardTitle>
-                                        <CardDescription>{selectedCandidate.email}</CardDescription>
-                                    </div>
-                                </div>
-                                <div className="mt-4 flex gap-2 flex-wrap">
-                                    <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", (statusConfig[selectedCandidate.status] || {}).color || '')}>
-                                        {(statusConfig[selectedCandidate.status] || {}).label || selectedCandidate.status}
-                                    </span>
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border bg-white text-gray-600">
-                                        {selectedCandidate.position}
-                                    </span>
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border bg-white text-gray-600">
-                                        {selectedCandidate.experience}y exp
-                                    </span>
-                                </div>
-                                {isMasterAdmin && (
-                                    <div className="mt-3 flex items-center gap-2">
-                                        <span className="text-xs text-gray-500 font-medium">Assign to:</span>
-                                        <select
-                                            className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
-                                            value={selectedCandidate.hiringManagerId || ''}
-                                            onChange={e => assignManager(selectedCandidate.id, e.target.value || null)}
-                                        >
-                                            <option value="">Unassigned</option>
-                                            {activeManagers.map(m => (
-                                                <option key={m.id} value={m.id}>{m.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
-                            </CardHeader>
-                            <CardContent className="p-6 space-y-6 flex-1 overflow-auto">
-                                {/* Application Info */}
-                                <div className="space-y-3">
-                                    <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Application Details</h4>
-                                    <div className="grid grid-cols-2 gap-3 text-sm">
-                                        <div className="bg-gray-50 p-3 rounded-lg">
-                                            <div className="text-gray-500 text-xs">Phone</div>
-                                            <div className="font-medium">{selectedCandidate.phone}</div>
+                    {/* Detail View - Only show in CANDIDATES tab */}
+                    {activeTab === 'CANDIDATES' && (
+                        selectedCandidate ? (
+                            <Card className="w-[480px] shadow-lg flex flex-col animate-in slide-in-from-right-8 duration-300">
+                                <CardHeader className="border-b bg-gray-50 relative pb-4">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+                                        onClick={() => setSelectedCandidate(null)}
+                                    >
+                                        <XCircle className="w-5 h-5" />
+                                    </Button>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-2xl font-bold border-2 border-primary-200">
+                                            {selectedCandidate.firstName.charAt(0)}
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded-lg">
-                                            <div className="text-gray-500 text-xs">Location</div>
-                                            <div className="font-medium">{selectedCandidate.currentLocation || '—'}</div>
+                                        <div>
+                                            <CardTitle className="text-xl">{selectedCandidate.firstName} {selectedCandidate.lastName}</CardTitle>
+                                            <CardDescription>{selectedCandidate.email}</CardDescription>
                                         </div>
                                     </div>
-                                    {selectedCandidate.motivation && (() => {
-                                        const whyLine = selectedCandidate.motivation.split('\n').find(l => l.startsWith('Why teach with us:'));
-                                        const answer = whyLine ? whyLine.replace('Why teach with us:', '').trim() : selectedCandidate.motivation;
+                                    <div className="mt-4 flex gap-2 flex-wrap">
+                                        <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", (statusConfig[selectedCandidate.status] || {}).color || '')}>
+                                            {(statusConfig[selectedCandidate.status] || {}).label || selectedCandidate.status}
+                                        </span>
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border bg-white text-gray-600">
+                                            {selectedCandidate.position}
+                                        </span>
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border bg-white text-gray-600">
+                                            {selectedCandidate.experience}y exp
+                                        </span>
+                                    </div>
+                                    {isMasterAdmin && (
+                                        <div className="mt-3 flex items-center gap-2">
+                                            <span className="text-xs text-gray-500 font-medium">Assign to:</span>
+                                            <select
+                                                className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
+                                                value={selectedCandidate.hiringManagerId || ''}
+                                                onChange={e => assignManager(selectedCandidate.id, e.target.value || null)}
+                                            >
+                                                <option value="">Unassigned</option>
+                                                {activeManagers.map(m => (
+                                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-6 flex-1 overflow-auto">
+                                    {/* Application Info */}
+                                    <div className="space-y-3">
+                                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Application Details</h4>
+                                        <div className="grid grid-cols-2 gap-3 text-sm">
+                                            <div className="bg-gray-50 p-3 rounded-lg">
+                                                <div className="text-gray-500 text-xs">Phone</div>
+                                                <div className="font-medium">{selectedCandidate.phone}</div>
+                                            </div>
+                                            <div className="bg-gray-50 p-3 rounded-lg">
+                                                <div className="text-gray-500 text-xs">Location</div>
+                                                <div className="font-medium">{selectedCandidate.currentLocation || '—'}</div>
+                                            </div>
+                                        </div>
+                                        {selectedCandidate.motivation && (() => {
+                                            const whyLine = selectedCandidate.motivation.split('\n').find(l => l.startsWith('Why teach with us:'));
+                                            const answer = whyLine ? whyLine.replace('Why teach with us:', '').trim() : selectedCandidate.motivation;
+                                            return (
+                                                <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-sm">
+                                                    <div className="text-blue-600 text-xs font-medium mb-1">Why teach with us?</div>
+                                                    <div className="text-blue-900">{answer}</div>
+                                                </div>
+                                            );
+                                        })()}
+                                        {selectedCandidate.cvDriveLink && (
+                                            <div className="pt-2">
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full justify-center gap-2 border-primary-200 text-primary-700 hover:bg-primary-50 font-semibold"
+                                                    onClick={() => {
+                                                        let cvUrl = selectedCandidate.cvDriveLink!;
+                                                        if (cvUrl.startsWith('http://localhost')) {
+                                                            cvUrl = cvUrl.replace(/^http:\/\/localhost:\d+/, API_BASE);
+                                                        }
+                                                        window.open(cvUrl, '_blank');
+                                                    }}
+                                                >
+                                                    <FileUp className="w-4 h-4" />
+                                                    View CV
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Assessment Status for TESTING candidates */}
+                                    {selectedCandidate.status === 'TESTING' && selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (() => {
+                                        const a = selectedCandidate.assessments[0];
+                                        const isExpired = a.expiresAt ? new Date() > new Date(a.expiresAt) : false;
+                                        const isStarted = !!a.startedAt;
+                                        const statusLabel = isExpired ? 'Expired' : isStarted ? 'In Progress' : 'Not Started';
+                                        const statusColor = isExpired ? 'text-red-600 bg-red-50 border-red-200' : isStarted ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-gray-600 bg-gray-50 border-gray-200';
+                                        const iconColor = isExpired ? 'text-red-500' : isStarted ? 'text-amber-500' : 'text-gray-400';
+
                                         return (
-                                            <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-sm">
-                                                <div className="text-blue-600 text-xs font-medium mb-1">Why teach with us?</div>
-                                                <div className="text-blue-900">{answer}</div>
+                                            <div className="space-y-3">
+                                                <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Assessment Status</h4>
+                                                <div className={cn("border rounded-xl p-4 space-y-3", statusColor)}>
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <Clock className={cn("w-5 h-5", iconColor)} />
+                                                            <span className="font-bold text-sm">{statusLabel}</span>
+                                                        </div>
+                                                        <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", statusColor)}>
+                                                            {a.status}
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                                        <div>
+                                                            <span className="text-gray-500">Sent:</span>{' '}
+                                                            <span className="font-medium">{toIST(a.createdAt, true)}</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-gray-500">Expires:</span>{' '}
+                                                            <span className="font-medium">{a.expiresAt ? toIST(a.expiresAt, true) : '—'}</span>
+                                                        </div>
+                                                        {a.startedAt && (
+                                                            <div className="col-span-2">
+                                                                <span className="text-gray-500">Started:</span>{' '}
+                                                                <span className="font-medium">{toIST(a.startedAt!, true)}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-3 text-xs bg-white/60 rounded-lg px-3 py-2 border border-gray-100">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Mail className="w-3.5 h-3.5 text-gray-400" />
+                                                            <span className="text-gray-500">Reminders sent:</span>
+                                                            <span className="font-bold text-gray-800">{a.reminderCount || 0}</span>
+                                                        </div>
+                                                        {a.lastReminderAt && (
+                                                            <div className="border-l pl-3">
+                                                                <span className="text-gray-500">Last:</span>{' '}
+                                                                <span className="font-medium text-gray-700">{toIST(a.lastReminderAt, true)}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="w-full gap-2 border-primary-200 text-primary-700 hover:bg-primary-50 font-semibold text-sm"
+                                                        onClick={() => sendReminder(selectedCandidate.id)}
+                                                        disabled={sendingReminder}
+                                                    >
+                                                        <Mail className="w-4 h-4" />
+                                                        {sendingReminder ? 'Sending...' : isExpired ? 'Resend Link (extends 72hrs)' : 'Send Reminder'}
+                                                    </Button>
+                                                </div>
                                             </div>
                                         );
                                     })()}
-                                    {selectedCandidate.cvDriveLink && (
-                                        <div className="pt-2">
-                                            <Button
-                                                variant="outline"
-                                                className="w-full justify-center gap-2 border-primary-200 text-primary-700 hover:bg-primary-50 font-semibold"
-                                                onClick={() => {
-                                                    let cvUrl = selectedCandidate.cvDriveLink!;
-                                                    if (cvUrl.startsWith('http://localhost')) {
-                                                        cvUrl = cvUrl.replace(/^http:\/\/localhost:\d+/, API_BASE);
-                                                    }
-                                                    window.open(cvUrl, '_blank');
-                                                }}
-                                            >
-                                                <FileUp className="w-4 h-4" />
-                                                View CV
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
 
-                                {/* Assessment Status for TESTING candidates */}
-                                {selectedCandidate.status === 'TESTING' && selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (() => {
-                                    const a = selectedCandidate.assessments[0];
-                                    const isExpired = a.expiresAt ? new Date() > new Date(a.expiresAt) : false;
-                                    const isStarted = !!a.startedAt;
-                                    const statusLabel = isExpired ? 'Expired' : isStarted ? 'In Progress' : 'Not Started';
-                                    const statusColor = isExpired ? 'text-red-600 bg-red-50 border-red-200' : isStarted ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-gray-600 bg-gray-50 border-gray-200';
-                                    const iconColor = isExpired ? 'text-red-500' : isStarted ? 'text-amber-500' : 'text-gray-400';
-
-                                    return (
-                                        <div className="space-y-3">
-                                            <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Assessment Status</h4>
-                                            <div className={cn("border rounded-xl p-4 space-y-3", statusColor)}>
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <Clock className={cn("w-5 h-5", iconColor)} />
-                                                        <span className="font-bold text-sm">{statusLabel}</span>
-                                                    </div>
-                                                    <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", statusColor)}>
-                                                        {a.status}
-                                                    </span>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                                    <div>
-                                                        <span className="text-gray-500">Sent:</span>{' '}
-                                                        <span className="font-medium">{toIST(a.createdAt, true)}</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-gray-500">Expires:</span>{' '}
-                                                        <span className="font-medium">{a.expiresAt ? toIST(a.expiresAt, true) : '—'}</span>
-                                                    </div>
-                                                    {a.startedAt && (
-                                                        <div className="col-span-2">
-                                                            <span className="text-gray-500">Started:</span>{' '}
-                                                            <span className="font-medium">{toIST(a.startedAt!, true)}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-3 text-xs bg-white/60 rounded-lg px-3 py-2 border border-gray-100">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <Mail className="w-3.5 h-3.5 text-gray-400" />
-                                                        <span className="text-gray-500">Reminders sent:</span>
-                                                        <span className="font-bold text-gray-800">{a.reminderCount || 0}</span>
-                                                    </div>
-                                                    {a.lastReminderAt && (
-                                                        <div className="border-l pl-3">
-                                                            <span className="text-gray-500">Last:</span>{' '}
-                                                            <span className="font-medium text-gray-700">{toIST(a.lastReminderAt, true)}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                    {/* Admin Actions for TESTING candidates */}
+                                    {selectedCandidate.status === 'TESTING' && (
+                                        <div className="border border-orange-200 bg-orange-50 p-4 rounded-xl space-y-3">
+                                            <h4 className="text-sm font-semibold text-orange-800 uppercase tracking-wider">Admin Actions</h4>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-gray-700">Rejection Comment <span className="text-red-500">*</span></label>
+                                                <textarea
+                                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 min-h-[80px]"
+                                                    placeholder="Mandatory: Provide reason for rejection..."
+                                                    value={rejectionComment}
+                                                    onChange={e => setRejectionComment(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="flex gap-3">
                                                 <Button
                                                     variant="outline"
-                                                    className="w-full gap-2 border-primary-200 text-primary-700 hover:bg-primary-50 font-semibold text-sm"
-                                                    onClick={() => sendReminder(selectedCandidate.id)}
-                                                    disabled={sendingReminder}
+                                                    className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2 font-semibold"
+                                                    disabled={!rejectionComment.trim()}
+                                                    onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL', rejectionComment.trim())}
                                                 >
-                                                    <Mail className="w-4 h-4" />
-                                                    {sendingReminder ? 'Sending...' : isExpired ? 'Resend Link (extends 72hrs)' : 'Send Reminder'}
+                                                    <XCircle className="w-4 h-4 mr-1" />
+                                                    Reject Candidate
+                                                </Button>
+                                            </div>
+                                            {!rejectionComment.trim() && (
+                                                <p className="text-[11px] text-red-500">* Comment is required to reject a candidate</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* MCQ Assessment */}
+                                    {selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (
+                                        <div className="space-y-3">
+                                            <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">MCQ Assessment</h4>
+                                            {selectedCandidate.assessments.map((a: Assessment) => (
+                                                <div key={a.id} className="bg-white border rounded-xl overflow-hidden">
+                                                    <div className="grid grid-cols-2 divide-x">
+                                                        <div className="text-center p-4">
+                                                            <div className={cn("text-2xl font-bold", (a.mcqScore ?? 0) >= 60 ? "text-green-600" : "text-red-600")}>{a.mcqScore ?? '—'}%</div>
+                                                            <div className="text-xs text-gray-500 mt-1">Score</div>
+                                                        </div>
+                                                        <div className="text-center p-4">
+                                                            <div className="text-lg font-bold text-gray-900">{a.topic || '—'}</div>
+                                                            <div className="text-xs text-gray-500 mt-1">Topic</div>
+                                                        </div>
+                                                    </div>
+                                                    {a.mcqQuestions && a.mcqQuestions.length > 0 && (
+                                                        <details className="border-t">
+                                                            <summary className="px-4 py-2.5 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50">
+                                                                View {a.mcqQuestions.length} Questions
+                                                            </summary>
+                                                            <div className="px-4 pb-3 space-y-3 max-h-64 overflow-auto">
+                                                                {a.mcqQuestions.map((q: McqQuestion, qi: number) => (
+                                                                    <div key={q.id} className="text-xs border-t pt-2">
+                                                                        <div className="flex gap-2">
+                                                                            <span className="text-gray-400 font-mono">{qi + 1}.</span>
+                                                                            <div>
+                                                                                <p className="font-medium text-gray-800 whitespace-pre-line">{q.questionText}</p>
+                                                                                <div className="mt-1 space-y-0.5">
+                                                                                    {q.options.map((opt: string, oi: number) => (
+                                                                                        <div key={oi} className={cn(
+                                                                                            "px-2 py-0.5 rounded",
+                                                                                            opt === q.correctAnswer ? "bg-green-100 text-green-800 font-medium" : "text-gray-600"
+                                                                                        )}>
+                                                                                            {String.fromCharCode(65 + oi)}. {opt}
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                                <span className={cn(
+                                                                                    "inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
+                                                                                    q.difficulty === 'easy' ? "bg-green-50 text-green-700" : q.difficulty === 'hard' ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"
+                                                                                )}>
+                                                                                    {q.difficulty}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </details>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Communication Skills */}
+                                    {selectedCandidate.assessments && selectedCandidate.assessments.some((a: Assessment) => a.introAudioDriveLink || a.audioDriveLink) && (
+                                        <div className="space-y-4">
+                                            <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Communication Skills</h4>
+                                            {selectedCandidate.assessments.map((a: Assessment) => (
+                                                <div key={`comm-${a.id}`} className="space-y-3">
+                                                    {a.introAudioDriveLink && (
+                                                        <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl space-y-2">
+                                                            <div className="text-indigo-800 text-sm font-semibold">Q: Tell me about yourself</div>
+                                                            <audio controls className="w-full h-8" src={a.introAudioDriveLink.startsWith('http://localhost') ? a.introAudioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.introAudioDriveLink}>
+                                                                Your browser does not support the audio element.
+                                                            </audio>
+                                                        </div>
+                                                    )}
+                                                    {a.audioDriveLink && (
+                                                        <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl space-y-2">
+                                                            <div className="text-purple-800 text-sm font-semibold">Q: How would you explain the concept of variables in programming to a 10-year-old?</div>
+                                                            <audio controls className="w-full h-8" src={a.audioDriveLink.startsWith('http://localhost') ? a.audioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.audioDriveLink}>
+                                                                Your browser does not support the audio element.
+                                                            </audio>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+
+                                            {['AUDIO_PROCESSING', 'MANUAL_REVIEW', 'AUDIO_FAILED'].includes(selectedCandidate.status) && (
+                                                <div className="border border-gray-200 bg-white p-4 rounded-xl space-y-3">
+                                                    <p className="text-xs text-gray-500">Based on the candidate's communication skills, make your decision:</p>
+                                                    <div className="flex gap-3">
+                                                        <Button
+                                                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                                            onClick={() => updateStatus(selectedCandidate.id, 'SELECTED')}
+                                                        >
+                                                            <CheckCircle2 className="w-4 h-4 mr-1" />
+                                                            Select Candidate
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2"
+                                                            onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL')}
+                                                        >
+                                                            <XCircle className="w-4 h-4 mr-1" />
+                                                            Reject Candidate
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Admin Actions – show only for candidates who cleared Stage 1 + MCQ */}
+                                    {['AUDIO_PROCESSING', 'MANUAL_REVIEW', 'AUDIO_FAILED'].includes(selectedCandidate.status) && (
+                                        <div className={cn(
+                                            "border p-4 rounded-xl space-y-3",
+                                            selectedCandidate.status === 'MANUAL_REVIEW' ? "bg-yellow-50 border-yellow-200" : "bg-gray-50 border-gray-200"
+                                        )}>
+                                            <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wider">Admin Actions</h4>
+                                            <div className="flex gap-3">
+                                                <Button
+                                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                                    onClick={() => updateStatus(selectedCandidate.id, 'SELECTED')}
+                                                >
+                                                    <CheckCircle2 className="w-4 h-4 mr-1" />
+                                                    Select
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2"
+                                                    onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL')}
+                                                >
+                                                    <XCircle className="w-4 h-4 mr-1" />
+                                                    Reject
                                                 </Button>
                                             </div>
                                         </div>
-                                    );
-                                })()}
+                                    )}
 
-                                {/* Admin Actions for TESTING candidates */}
-                                {selectedCandidate.status === 'TESTING' && (
-                                    <div className="border border-orange-200 bg-orange-50 p-4 rounded-xl space-y-3">
-                                        <h4 className="text-sm font-semibold text-orange-800 uppercase tracking-wider">Admin Actions</h4>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-medium text-gray-700">Rejection Comment <span className="text-red-500">*</span></label>
-                                            <textarea
-                                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 min-h-[80px]"
-                                                placeholder="Mandatory: Provide reason for rejection..."
-                                                value={rejectionComment}
-                                                onChange={e => setRejectionComment(e.target.value)}
-                                            />
+                                    {/* Status badge — view-only for final decisions */}
+                                    {selectedCandidate.status === 'SELECTED' && (
+                                        <div className="bg-green-50 border border-green-200 p-4 rounded-xl text-center">
+                                            <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                                            <p className="text-green-800 font-bold">Final Status: Selected</p>
                                         </div>
-                                        <div className="flex gap-3">
-                                            <Button
-                                                variant="outline"
-                                                className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2 font-semibold"
-                                                disabled={!rejectionComment.trim()}
-                                                onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL', rejectionComment.trim())}
-                                            >
-                                                <XCircle className="w-4 h-4 mr-1" />
-                                                Reject Candidate
-                                            </Button>
+                                    )}
+                                    {selectedCandidate.status === 'REJECTED_FINAL' && (
+                                        <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center space-y-2">
+                                            <XCircle className="w-8 h-8 text-red-500 mx-auto" />
+                                            <p className="text-red-800 font-bold">Final Status: Rejected</p>
+                                            {selectedCandidate.rejectionReason && (
+                                                <p className="text-red-600 text-sm">Reason: {selectedCandidate.rejectionReason}</p>
+                                            )}
                                         </div>
-                                        {!rejectionComment.trim() && (
-                                            <p className="text-[11px] text-red-500">* Comment is required to reject a candidate</p>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* MCQ Assessment */}
-                                {selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (
-                                    <div className="space-y-3">
-                                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">MCQ Assessment</h4>
-                                        {selectedCandidate.assessments.map((a: Assessment) => (
-                                            <div key={a.id} className="bg-white border rounded-xl overflow-hidden">
-                                                <div className="grid grid-cols-2 divide-x">
-                                                    <div className="text-center p-4">
-                                                        <div className={cn("text-2xl font-bold", (a.mcqScore ?? 0) >= 60 ? "text-green-600" : "text-red-600")}>{a.mcqScore ?? '—'}%</div>
-                                                        <div className="text-xs text-gray-500 mt-1">Score</div>
-                                                    </div>
-                                                    <div className="text-center p-4">
-                                                        <div className="text-lg font-bold text-gray-900">{a.topic || '—'}</div>
-                                                        <div className="text-xs text-gray-500 mt-1">Topic</div>
-                                                    </div>
-                                                </div>
-                                                {a.mcqQuestions && a.mcqQuestions.length > 0 && (
-                                                    <details className="border-t">
-                                                        <summary className="px-4 py-2.5 text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-50">
-                                                            View {a.mcqQuestions.length} Questions
-                                                        </summary>
-                                                        <div className="px-4 pb-3 space-y-3 max-h-64 overflow-auto">
-                                                            {a.mcqQuestions.map((q: McqQuestion, qi: number) => (
-                                                                <div key={q.id} className="text-xs border-t pt-2">
-                                                                    <div className="flex gap-2">
-                                                                        <span className="text-gray-400 font-mono">{qi + 1}.</span>
-                                                                        <div>
-                                                                            <p className="font-medium text-gray-800 whitespace-pre-line">{q.questionText}</p>
-                                                                            <div className="mt-1 space-y-0.5">
-                                                                                {q.options.map((opt: string, oi: number) => (
-                                                                                    <div key={oi} className={cn(
-                                                                                        "px-2 py-0.5 rounded",
-                                                                                        opt === q.correctAnswer ? "bg-green-100 text-green-800 font-medium" : "text-gray-600"
-                                                                                    )}>
-                                                                                        {String.fromCharCode(65 + oi)}. {opt}
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                            <span className={cn(
-                                                                                "inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium",
-                                                                                q.difficulty === 'easy' ? "bg-green-50 text-green-700" : q.difficulty === 'hard' ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"
-                                                                            )}>
-                                                                                {q.difficulty}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </details>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Communication Skills */}
-                                {selectedCandidate.assessments && selectedCandidate.assessments.some((a: Assessment) => a.introAudioDriveLink || a.audioDriveLink) && (
-                                    <div className="space-y-4">
-                                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Communication Skills</h4>
-                                        {selectedCandidate.assessments.map((a: Assessment) => (
-                                            <div key={`comm-${a.id}`} className="space-y-3">
-                                                {a.introAudioDriveLink && (
-                                                    <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl space-y-2">
-                                                        <div className="text-indigo-800 text-sm font-semibold">Q: Tell me about yourself</div>
-                                                        <audio controls className="w-full h-8" src={a.introAudioDriveLink.startsWith('http://localhost') ? a.introAudioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.introAudioDriveLink}>
-                                                            Your browser does not support the audio element.
-                                                        </audio>
-                                                    </div>
-                                                )}
-                                                {a.audioDriveLink && (
-                                                    <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl space-y-2">
-                                                        <div className="text-purple-800 text-sm font-semibold">Q: How would you explain the concept of variables in programming to a 10-year-old?</div>
-                                                        <audio controls className="w-full h-8" src={a.audioDriveLink.startsWith('http://localhost') ? a.audioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.audioDriveLink}>
-                                                            Your browser does not support the audio element.
-                                                        </audio>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-
-                                        {['AUDIO_PROCESSING', 'MANUAL_REVIEW', 'AUDIO_FAILED'].includes(selectedCandidate.status) && (
-                                            <div className="border border-gray-200 bg-white p-4 rounded-xl space-y-3">
-                                                <p className="text-xs text-gray-500">Based on the candidate's communication skills, make your decision:</p>
-                                                <div className="flex gap-3">
-                                                    <Button
-                                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                                                        onClick={() => updateStatus(selectedCandidate.id, 'SELECTED')}
-                                                    >
-                                                        <CheckCircle2 className="w-4 h-4 mr-1" />
-                                                        Select Candidate
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2"
-                                                        onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL')}
-                                                    >
-                                                        <XCircle className="w-4 h-4 mr-1" />
-                                                        Reject Candidate
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Admin Actions – show only for candidates who cleared Stage 1 + MCQ */}
-                                {['AUDIO_PROCESSING', 'MANUAL_REVIEW', 'AUDIO_FAILED'].includes(selectedCandidate.status) && (
-                                    <div className={cn(
-                                        "border p-4 rounded-xl space-y-3",
-                                        selectedCandidate.status === 'MANUAL_REVIEW' ? "bg-yellow-50 border-yellow-200" : "bg-gray-50 border-gray-200"
-                                    )}>
-                                        <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-wider">Admin Actions</h4>
-                                        <div className="flex gap-3">
-                                            <Button
-                                                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                                                onClick={() => updateStatus(selectedCandidate.id, 'SELECTED')}
-                                            >
-                                                <CheckCircle2 className="w-4 h-4 mr-1" />
-                                                Select
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="flex-1 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 border-2"
-                                                onClick={() => updateStatus(selectedCandidate.id, 'REJECTED_FINAL')}
-                                            >
-                                                <XCircle className="w-4 h-4 mr-1" />
-                                                Reject
-                                            </Button>
+                                    )}
+                                    {selectedCandidate.status === 'REJECTED_FORM' && (
+                                        <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center space-y-2">
+                                            <XCircle className="w-8 h-8 text-red-400 mx-auto" />
+                                            <p className="text-red-700 font-bold">Rejected at Application Stage</p>
+                                            {selectedCandidate.rejectionReason && (
+                                                <p className="text-red-600 text-sm">Reason: {selectedCandidate.rejectionReason}</p>
+                                            )}
                                         </div>
-                                    </div>
-                                )}
-
-                                {/* Status badge — view-only for final decisions */}
-                                {selectedCandidate.status === 'SELECTED' && (
-                                    <div className="bg-green-50 border border-green-200 p-4 rounded-xl text-center">
-                                        <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                                        <p className="text-green-800 font-bold">Final Status: Selected</p>
-                                    </div>
-                                )}
-                                {selectedCandidate.status === 'REJECTED_FINAL' && (
-                                    <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center space-y-2">
-                                        <XCircle className="w-8 h-8 text-red-500 mx-auto" />
-                                        <p className="text-red-800 font-bold">Final Status: Rejected</p>
-                                        {selectedCandidate.rejectionReason && (
-                                            <p className="text-red-600 text-sm">Reason: {selectedCandidate.rejectionReason}</p>
-                                        )}
-                                    </div>
-                                )}
-                                {selectedCandidate.status === 'REJECTED_FORM' && (
-                                    <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center space-y-2">
-                                        <XCircle className="w-8 h-8 text-red-400 mx-auto" />
-                                        <p className="text-red-700 font-bold">Rejected at Application Stage</p>
-                                        {selectedCandidate.rejectionReason && (
-                                            <p className="text-red-600 text-sm">Reason: {selectedCandidate.rejectionReason}</p>
-                                        )}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 max-w-[480px]">
-                            <User className="w-12 h-12 mb-4 text-gray-300" />
-                            <p>Select a candidate to view details</p>
-                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 max-w-[480px]">
+                                <User className="w-12 h-12 mb-4 text-gray-300" />
+                                <p>Select a candidate to view details</p>
+                            </div>
+                        )
                     )}
                 </main>
             </div>

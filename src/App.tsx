@@ -5,6 +5,8 @@ import LandingPage from './pages/LandingPage';
 import ApplyPage from './pages/ApplyPage';
 import AssessmentPage from './pages/AssessmentPage';
 import AdminDashboard from './pages/AdminDashboard';
+import CandidateLogin from './pages/CandidateLogin';
+import CandidateDashboard from './pages/CandidateDashboard';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,6 +26,8 @@ function App() {
           <Route path="/apply" element={<ApplyPage />} />
           <Route path="/assessment/:token" element={<AssessmentPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/candidate-login" element={<CandidateLogin />} />
+          <Route path="/candidate-dashboard" element={<CandidateDashboard />} />
         </Routes>
       </BrowserRouter>
       <Analytics />

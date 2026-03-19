@@ -39,4 +39,23 @@ export class AdminService {
 
         return candidate;
     }
+
+    async getDashboardConfig(subject: string) {
+        const config = await this.prisma.subjectDashboardConfig.findUnique({
+            where: { subject }
+        });
+        if (!config) {
+            return { subject, mockInterviewLink: '', trainingNodes: [] };
+        }
+        return config;
+    }
+
+    async saveDashboardConfig(data: any) {
+        const { subject, mockInterviewLink, trainingNodes } = data;
+        return this.prisma.subjectDashboardConfig.upsert({
+            where: { subject },
+            update: { mockInterviewLink, trainingNodes },
+            create: { subject, mockInterviewLink, trainingNodes }
+        });
+    }
 }

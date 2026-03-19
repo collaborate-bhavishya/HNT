@@ -19,14 +19,14 @@ export class HiringManagersService {
                 phone: data.phone || null,
                 subject: data.subject || 'Coding',
             },
-            select: { id: true, name: true, email: true, phone: true, subject: true, isActive: true, createdAt: true },
+            select: { id: true, name: true, email: true, phone: true, subject: true, isActive: true, isAutoAssignEnabled: true, lastAssignedAt: true, createdAt: true },
         });
     }
 
     async findAll() {
         const managers = await this.prisma.hiringManager.findMany({
             select: {
-                id: true, name: true, email: true, phone: true, subject: true, isActive: true, createdAt: true,
+                id: true, name: true, email: true, phone: true, subject: true, isActive: true, isAutoAssignEnabled: true, lastAssignedAt: true, createdAt: true,
                 _count: { select: { candidates: true } },
             },
             orderBy: { createdAt: 'desc' },
@@ -52,12 +52,13 @@ export class HiringManagersService {
         if (data.phone !== undefined) updateData.phone = data.phone;
         if (data.subject !== undefined) updateData.subject = data.subject;
         if (data.isActive !== undefined) updateData.isActive = data.isActive;
+        if (data.isAutoAssignEnabled !== undefined) updateData.isAutoAssignEnabled = data.isAutoAssignEnabled;
         if (data.password) updateData.password = await bcrypt.hash(data.password, 10);
 
         return this.prisma.hiringManager.update({
             where: { id },
             data: updateData,
-            select: { id: true, name: true, email: true, phone: true, subject: true, isActive: true, createdAt: true },
+            select: { id: true, name: true, email: true, phone: true, subject: true, isActive: true, isAutoAssignEnabled: true, lastAssignedAt: true, createdAt: true },
         });
     }
 

@@ -123,6 +123,8 @@ export class ApplicationsService {
             status = 'TESTING';
         }
 
+        const pin = Math.floor(1000 + Math.random() * 9000).toString();
+
         const candidate = await this.prisma.candidate.create({
             data: {
                 firstName: dto.firstName,
@@ -139,6 +141,7 @@ export class ApplicationsService {
                 status,
                 layer1Score: evalResult.score,
                 rejectionReason: evalResult.rejectionReason,
+                pin,
             },
         });
 
@@ -155,9 +158,14 @@ export class ApplicationsService {
             assessmentToken = assessment.token;
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
             const link = `${frontendUrl}/assessment/${assessmentToken}`;
-            await this.notifications.sendAssessmentLinkEmail(candidate.email, link);
+            await this.notifications.sendAssessmentLinkEmail(candidate.email, link, candidate.pin || undefined);
         } else if (status === 'REJECTED_FORM') {
             await this.notifications.sendFormRejectionEmail(candidate.email);
+        }
+
+        // Auto-assign hiring manager if passed form screening
+        if (status === 'TESTING') {
+            await this.autoAssignHiringManager(candidate.id, candidate.position);
         }
 
         return {
@@ -272,5 +280,39 @@ export class ApplicationsService {
         }
 
         return candidate;
+    }
+
+    private async autoAssignHiringManager(candidateId: string, subject: string) {
+        try {
+            // Find eligible managers for the subject
+            const managers = await this.prisma.hiringManager.findMany({
+                where: {
+                    subject: { equals: subject, mode: 'insensitive' },
+                    isActive: true,
+                    isAutoAssignEnabled: true,
+                },
+                orderBy: {
+                    lastAssignedAt: 'asc',
+                },
+                take: 1,
+            });
+
+            if (managers.length > 0) {
+                const manager = managers[0];
+                await this.prisma.candidate.update({
+                    where: { id: candidateId },
+                    data: { hiringManagerId: manager.id },
+                });
+
+                await this.prisma.hiringManager.update({
+                    where: { id: manager.id },
+                    data: { lastAssignedAt: new Date() },
+                });
+
+                console.log(`[AutoAssign] Assigned candidate ${candidateId} to manager ${manager.name} (${manager.email})`);
+            }
+        } catch (error) {
+            console.error('[AutoAssign] Error during auto-assignment:', error);
+        }
     }
 }

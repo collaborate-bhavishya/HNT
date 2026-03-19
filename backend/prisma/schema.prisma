@@ -14,81 +14,93 @@ model HiringManager {
   email      String      @unique
   password   String
   phone      String?
-  subject    String      @default("Coding")
-  isActive   Boolean     @default(true)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  isActive            Boolean     @default(true)
+  isAutoAssignEnabled Boolean     @default(false)
+  lastAssignedAt      DateTime    @default(now())
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  subject             String      @default("Coding")
   candidates Candidate[]
 }
 
 model Candidate {
-  id              String          @id @default(uuid())
-  firstName       String
-  lastName        String
-  email           String          @unique
-  phone           String          @unique
-  position        String
-  experience      Int
-  expectedSalary  Float?
-  currentLocation String?
-  cvDriveLink     String?
-  motivation      String?
-  cvText          String?
-  status          String          @default("APPLIED")
-  rejectionReason String?
-  layer1Score     Float?
+  id                String         @id @default(uuid())
+  firstName         String
+  lastName          String
+  email             String         @unique
+  phone             String         @unique
+  position          String
+  experience        Int
+  expectedSalary    Float?
+  currentLocation   String?
+  cvDriveLink       String?
+  status            String         @default("APPLIED")
+  rejectionReason   String?
+  layer1Score       Float?
+  finalScore        Float?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  aiCvScore         Float?
   aiMotivationScore Float?
-  aiCvScore       Float?
-  applicationScore Float?
-  finalScore      Float?
-  hiringManagerId String?
-  hiringManager   HiringManager?  @relation(fields: [hiringManagerId], references: [id])
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  assessments     Assessment[]
+  applicationScore  Float?
+  motivation        String?
+  cvText            String?
+  hiringManagerId   String?
+  pin               String?
+  assessments       Assessment[]
+  hiringManager     HiringManager? @relation(fields: [hiringManagerId], references: [id])
 }
 
 model Assessment {
-  id          String   @id @default(uuid())
-  candidateId String
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
-  token       String   @unique @default(uuid())
-  status      String   @default("PENDING")
-  mcqScore    Float?
-  audioScore  Float?
-  finalScore  Float?
-  expiresAt   DateTime
-  startedAt   DateTime?
-  completedAt DateTime?
-  topic       String?
-  mcqQuestions Json?
-  antiCheat   Json?
-  reminderCount   Int       @default(0)
-  lastReminderAt  DateTime?
+  id                  String    @id @default(uuid())
+  candidateId         String
+  token               String    @unique @default(uuid())
+  status              String    @default("PENDING")
+  mcqScore            Float?
+  finalScore          Float?
+  expiresAt           DateTime
+  startedAt           DateTime?
+  completedAt         DateTime?
+  antiCheat           Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  aiSpeechRawScores   Json?
+  aiSpeechTranscript  String?
+  audioDriveLink      String?
+  audioScore          Float?
+  mcqQuestions        Json?
+  topic               String?
   introAudioDriveLink String?
-  audioDriveLink String?
-  aiSpeechRawScores Json?
-  aiSpeechTranscript String?
-  audioPrompts  Json?
-  audioResponses Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  lastReminderAt      DateTime?
+  reminderCount       Int       @default(0)
+  audioPrompts        Json?
+  audioResponses      Json?
+  candidate           Candidate @relation(fields: [candidateId], references: [id])
 }
 
 model Question {
   id            String   @id @default(uuid())
-  subject       String   @default("coding")
   category      String
   questionText  String
   options       Json
   correctAnswer String
   difficulty    String   @default("MEDIUM")
   createdAt     DateTime @default(now())
+  subject       String   @default("coding")
 }
 
 model AudioQuestion {
-  id            String   @id @default(uuid())
-  subject       String   @default("coding")
-  questionText  String
-  createdAt     DateTime @default(now())
+  id           String   @id @default(uuid())
+  subject      String   @default("coding")
+  questionText String
+  createdAt    DateTime @default(now())
+}
+
+model SubjectDashboardConfig {
+  id                String   @id @default(uuid())
+  subject           String   @unique
+  mockInterviewLink String?
+  trainingNodes     Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
