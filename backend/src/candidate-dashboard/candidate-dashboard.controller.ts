@@ -43,6 +43,7 @@ export class CandidateDashboardController {
         status: candidate.status,
       },
       assessment: assessment ? {
+        token: assessment.token,
         status: assessment.status,
         mcqScore: assessment.mcqScore,
         audioScore: assessment.audioScore,

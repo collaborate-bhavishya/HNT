@@ -267,7 +267,9 @@ export default function CandidateDashboard() {
                           <button 
                              className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl shadow-md transition-transform active:scale-95"
                              onClick={() => {
-                                 if (step.name === 'Schedule & Prepare Mock Round Interview' && data.mockInterviewLink) {
+                                 if ((step.name === 'MCQ Assessment' || step.name === 'Audio Assessment') && data.assessment?.token) {
+                                     navigate(`/assessment/${data.assessment.token}`);
+                                 } else if (step.name === 'Schedule & Prepare Mock Round Interview' && data.mockInterviewLink) {
                                      window.open(data.mockInterviewLink, '_blank');
                                  } else if (config.ctaLink) {
                                      window.open(config.ctaLink, '_blank');
