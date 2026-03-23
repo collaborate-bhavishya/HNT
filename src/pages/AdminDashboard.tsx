@@ -116,6 +116,7 @@ export default function AdminDashboard() {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+    const [isDetailLoading, setIsDetailLoading] = useState(false);
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -275,6 +276,11 @@ export default function AdminDashboard() {
     };
 
     const fetchCandidateDetail = async (id: string) => {
+        // Optimistically set partial data from list to animate instantly
+        const partialData = candidates.find(c => c.id === id);
+        if (partialData) setSelectedCandidate(partialData);
+        setIsDetailLoading(true);
+
         try {
             const res = await fetch(`${API_BASE}/api/applications/${id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -283,9 +289,9 @@ export default function AdminDashboard() {
             const data = await res.json();
             setSelectedCandidate(data);
         } catch {
-            // If detail endpoint doesn't exist, use list data
-            const c = candidates.find(c => c.id === id);
-            if (c) setSelectedCandidate(c);
+            // If detail endpoint doesn't exist, we fallback to partial entirely.
+        } finally {
+            setIsDetailLoading(false);
         }
     };
 
@@ -1348,7 +1354,12 @@ export default function AdminDashboard() {
                                             </button>
                                         </div>
 
-                                        <div className="flex-1 overflow-y-auto p-8 max-w-4xl space-y-8">
+                                        <div className="flex-1 overflow-y-auto relative p-8 max-w-4xl space-y-8">
+                                            {isDetailLoading && (
+                                                <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-xl animate-in fade-in duration-200">
+                                                    <RefreshCw className="w-8 h-8 text-primary-500 animate-spin mb-4" />
+                                                </div>
+                                            )}
                                             {activeDetailTab === 'ASSESSMENT' && (
                                                 <>
                                                     {selectedCandidate.motivation && (() => {
