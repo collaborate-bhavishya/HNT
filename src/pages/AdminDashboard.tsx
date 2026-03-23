@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
 import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail, LayoutDashboard, ShieldCheck } from 'lucide-react';
@@ -122,6 +122,7 @@ export default function AdminDashboard() {
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const [positionFilter, setPositionFilter] = useState<string>('ALL');
     const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS' | 'HIRING_MANAGERS' | 'DASHBOARD_CONFIG' | 'QUALITY_TEAM'>('CANDIDATES');
+    const [activeDetailTab, setActiveDetailTab] = useState<'ASSESSMENT'>('ASSESSMENT');
 
     const [hiringManagers, setHiringManagers] = useState<HiringManagerInfo[]>([]);
     const [activeManagers, setActiveManagers] = useState<HiringManagerInfo[]>([]);
@@ -1223,112 +1224,43 @@ export default function AdminDashboard() {
                         </div>
                     )}
 
-                    {/* Detail View - Only show in CANDIDATES tab */}
+                    {/* Overlay Detail View for selected Candidate */}
                     {activeTab === 'CANDIDATES' && (
                         selectedCandidate ? (
-                            <Card className="w-[480px] shadow-lg flex flex-col animate-in slide-in-from-right-8 duration-300">
-                                <CardHeader className="border-b bg-gray-50 relative pb-4">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
-                                        onClick={() => setSelectedCandidate(null)}
-                                    >
-                                        <XCircle className="w-5 h-5" />
-                                    </Button>
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-2xl font-bold border-2 border-primary-200">
-                                            {selectedCandidate.firstName.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <CardTitle className="text-xl">{selectedCandidate.firstName} {selectedCandidate.lastName}</CardTitle>
-                                            <CardDescription>{selectedCandidate.email}</CardDescription>
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 flex gap-2 flex-wrap">
-                                        <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", (statusConfig[selectedCandidate.status] || {}).color || '')}>
-                                            {(statusConfig[selectedCandidate.status] || {}).label || selectedCandidate.status}
-                                        </span>
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border bg-white text-gray-600">
-                                            {selectedCandidate.position}
-                                        </span>
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border bg-white text-gray-600">
-                                            {selectedCandidate.experience}y exp
-                                        </span>
-                                    </div>
-                                    {isMasterAdmin && (
-                                        <div className="mt-3 space-y-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-gray-500 font-medium w-16">Vertical:</span>
-                                                <select
-                                                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
-                                                    value={selectedCandidate.position}
-                                                    onChange={async (e) => {
-                                                        const newPosition = e.target.value;
-                                                        try {
-                                                            const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/position`, {
-                                                                method: 'POST',
-                                                                headers: { 
-                                                                    'Content-Type': 'application/json',
-                                                                    'Authorization': `Bearer ${token}`
-                                                                },
-                                                                body: JSON.stringify({ position: newPosition }),
-                                                            });
-                                                            if (res.ok) {
-                                                                setSelectedCandidate({ ...selectedCandidate, position: newPosition });
-                                                                fetchCandidates();
-                                                            }
-                                                        } catch {}
-                                                    }}
-                                                >
-                                                    <option value="Coding">Coding</option>
-                                                    <option value="Math">Math</option>
-                                                    <option value="Science">Science</option>
-                                                    <option value="English">English</option>
-                                                </select>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-gray-500 font-medium w-16">Assign to:</span>
-                                                <select
-                                                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
-                                                    value={selectedCandidate.hiringManagerId || ''}
-                                                    onChange={e => assignManager(selectedCandidate.id, e.target.value || null)}
-                                                >
-                                                    <option value="">Unassigned</option>
-                                                    {activeManagers.map(m => (
-                                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    )}
-                                </CardHeader>
-                                <CardContent className="p-6 space-y-6 flex-1 overflow-auto">
-                                    {/* Application Info */}
-                                    <div className="space-y-3">
-                                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Application Details</h4>
-                                        <div className="grid grid-cols-2 gap-3 text-sm">
-                                            <div className="bg-gray-50 p-3 rounded-lg">
-                                                <div className="text-gray-500 text-xs">Phone</div>
-                                                <div className="font-medium">{selectedCandidate.phone}</div>
-                                            </div>
-                                            <div className="bg-gray-50 p-3 rounded-lg">
-                                                <div className="text-gray-500 text-xs">Location</div>
-                                                <div className="font-medium">{selectedCandidate.currentLocation || '—'}</div>
-                                            </div>
-                                        </div>
-                                        {selectedCandidate.motivation && (() => {
-                                            const whyLine = selectedCandidate.motivation.split('\n').find(l => l.startsWith('Why teach with us:'));
-                                            const answer = whyLine ? whyLine.replace('Why teach with us:', '').trim() : selectedCandidate.motivation;
-                                            return (
-                                                <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-sm">
-                                                    <div className="text-blue-600 text-xs font-medium mb-1">Why teach with us?</div>
-                                                    <div className="text-blue-900">{answer}</div>
+                            <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+                                <div className="w-3/4 h-full bg-white shadow-2xl flex relative animate-in slide-in-from-right duration-500">
+                                    {/* Left Panel - 25% */}
+                                    <div className="w-1/4 h-full bg-gray-50 border-r border-gray-200 flex flex-col overflow-y-auto">
+                                        <div className="p-6 space-y-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-16 h-16 rounded-full bg-primary-100 flex-shrink-0 flex items-center justify-center text-primary-700 text-2xl font-bold border-2 border-primary-200">
+                                                    {selectedCandidate.firstName.charAt(0)}
                                                 </div>
-                                            );
-                                        })()}
-                                        {selectedCandidate.cvDriveLink && (
-                                            <div className="pt-2">
+                                                <div className="overflow-hidden">
+                                                    <h3 className="text-xl font-bold text-gray-900 truncate">{selectedCandidate.firstName} {selectedCandidate.lastName}</h3>
+                                                    <p className="text-sm text-gray-500 truncate">{selectedCandidate.email}</p>
+                                                    <p className="text-sm text-gray-500 truncate">{selectedCandidate.phone}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2 flex-wrap">
+                                                <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", (statusConfig[selectedCandidate.status] || {}).color || '')}>
+                                                    {(statusConfig[selectedCandidate.status] || {}).label || selectedCandidate.status}
+                                                </span>
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border bg-white text-gray-600">
+                                                    {selectedCandidate.position}
+                                                </span>
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border bg-white text-gray-600">
+                                                    {selectedCandidate.experience}y exp
+                                                </span>
+                                                {selectedCandidate.currentLocation && (
+                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border bg-white text-gray-600">
+                                                        {selectedCandidate.currentLocation}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {selectedCandidate.cvDriveLink && (
                                                 <Button
                                                     variant="outline"
                                                     className="w-full justify-center gap-2 border-primary-200 text-primary-700 hover:bg-primary-50 font-semibold"
@@ -1343,9 +1275,95 @@ export default function AdminDashboard() {
                                                     <FileUp className="w-4 h-4" />
                                                     View CV
                                                 </Button>
+                                            )}
+
+                                            <div className="space-y-4 pt-6 border-t border-gray-200">
+                                                {isMasterAdmin && (
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-1 block">Subject Vertical</label>
+                                                            <select
+                                                                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
+                                                                value={selectedCandidate.position}
+                                                                onChange={async (e) => {
+                                                                    const newPosition = e.target.value;
+                                                                    try {
+                                                                        const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/position`, {
+                                                                            method: 'POST',
+                                                                            headers: { 
+                                                                                'Content-Type': 'application/json',
+                                                                                'Authorization': `Bearer ${token}`
+                                                                            },
+                                                                            body: JSON.stringify({ position: newPosition }),
+                                                                        });
+                                                                        if (res.ok) {
+                                                                            setSelectedCandidate({ ...selectedCandidate, position: newPosition });
+                                                                            fetchCandidates();
+                                                                        }
+                                                                    } catch {}
+                                                                }}
+                                                            >
+                                                                <option value="Coding">Coding</option>
+                                                                <option value="Math">Math</option>
+                                                                <option value="Science">Science</option>
+                                                                <option value="English">English</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-1 block">Assign To</label>
+                                                            <select
+                                                                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
+                                                                value={selectedCandidate.hiringManagerId || ''}
+                                                                onChange={e => assignManager(selectedCandidate.id, e.target.value || null)}
+                                                            >
+                                                                <option value="">Unassigned</option>
+                                                                {activeManagers.map(m => (
+                                                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
+
+                                    {/* Right Panel - 75% */}
+                                    <div className="flex-1 h-full flex flex-col bg-white relative">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 z-10"
+                                            onClick={() => setSelectedCandidate(null)}
+                                        >
+                                            <XCircle className="w-6 h-6" />
+                                        </Button>
+
+                                        <div className="px-8 pt-6 border-b border-gray-200 flex gap-6">
+                                            <button 
+                                                className={cn("pb-3 text-sm font-bold border-b-2 transition-colors", activeDetailTab === 'ASSESSMENT' ? "border-primary-600 text-primary-600" : "border-transparent text-gray-500 hover:text-gray-700")}
+                                                onClick={() => setActiveDetailTab('ASSESSMENT')}
+                                            >
+                                                Assessment
+                                            </button>
+                                        </div>
+
+                                        <div className="flex-1 overflow-y-auto p-8 max-w-4xl space-y-8">
+                                            {activeDetailTab === 'ASSESSMENT' && (
+                                                <>
+                                                    {selectedCandidate.motivation && (() => {
+                                                        const whyLine = selectedCandidate.motivation.split('\n').find(l => l.startsWith('Why teach with us:'));
+                                                        const answer = whyLine ? whyLine.replace('Why teach with us:', '').trim() : selectedCandidate.motivation;
+                                                        return (
+                                                            <div className="space-y-3">
+                                                                <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Candidate Motivation</h4>
+                                                                <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl text-sm">
+                                                                    <div className="text-blue-600 text-xs font-bold mb-2 uppercase tracking-wider">Why teach with us?</div>
+                                                                    <div className="text-blue-900 leading-relaxed text-base">{answer}</div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
 
                                     {/* Assessment Status for TESTING candidates */}
                                     {selectedCandidate.status === 'TESTING' && selectedCandidate.assessments && selectedCandidate.assessments.length > 0 && (() => {
@@ -1753,14 +1771,13 @@ export default function AdminDashboard() {
                                             )}
                                         </div>
                                     )}
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 max-w-[480px]">
-                                <User className="w-12 h-12 mb-4 text-gray-300" />
-                                <p>Select a candidate to view details</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        )
+                        ) : null
                     )}
                 </main>
             </div>
