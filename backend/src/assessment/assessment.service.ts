@@ -68,6 +68,7 @@ export class AssessmentService {
             status: assessment.status,
             topic: (assessment as any).topic,
             questions, // might be empty if not started yet
+            audioPrompts: (assessment as any).audioPrompts || null,
             duration: 20 * 60, // 20 minutes in seconds
         };
     }
