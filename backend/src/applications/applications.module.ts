@@ -8,9 +8,10 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
     imports: [
-        BullModule.registerQueue({
-            name: 'application-ai-queue',
-        }),
+        BullModule.registerQueue(
+            { name: 'application-ai-queue' },
+            { name: 'assessment-reminder-queue' },
+        ),
         NotificationsModule
     ],
     controllers: [ApplicationsController],

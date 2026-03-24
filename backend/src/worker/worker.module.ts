@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Redis } from 'ioredis';
 import { ApplicationAiWorker } from './application-ai.worker';
 import { AudioWorker } from './audio.worker';
+import { ReminderWorker } from './reminder.worker';
 import { PrismaService } from '../prisma.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 
@@ -19,10 +20,11 @@ const redisConnection = new Redis(redisUrl, {
         }),
         BullModule.registerQueue(
             { name: 'application-ai-queue' },
-            { name: 'audio-processing-queue' }
+            { name: 'audio-processing-queue' },
+            { name: 'assessment-reminder-queue' }
         ),
         NotificationsModule,
     ],
-    providers: [ApplicationAiWorker, AudioWorker, PrismaService],
+    providers: [ApplicationAiWorker, AudioWorker, ReminderWorker, PrismaService],
 })
 export class WorkerModule { }

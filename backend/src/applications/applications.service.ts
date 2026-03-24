@@ -18,6 +18,7 @@ export class ApplicationsService {
         private evaluatorService: ApplicationEvaluatorService,
         private notifications: NotificationsService,
         @InjectQueue('application-ai-queue') private aiQueue: Queue,
+        @InjectQueue('assessment-reminder-queue') private reminderQueue: Queue,
     ) {
         const hasKeys = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION);
         console.log(`[ApplicationsService] AWS Keys found: ${hasKeys} (Region: ${process.env.AWS_REGION})`);
@@ -161,6 +162,17 @@ export class ApplicationsService {
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
             const link = `${frontendUrl}/assessment/${assessmentToken}`;
             await this.notifications.sendAssessmentLinkEmail(candidate.id, candidate.email, link, candidate.pin || undefined);
+
+            // Schedule a 24-hour reminder
+            await this.reminderQueue.add(
+                'send-reminder',
+                { candidateId: candidate.id, assessmentToken },
+                {
+                    delay: 24 * 60 * 60 * 1000, // 24 hours
+                    jobId: `reminder-${candidate.id}-${assessmentToken}`, // Avoid duplicate reminders
+                    removeOnComplete: true,
+                }
+            );
         } else if (status === 'REJECTED_FORM') {
             await this.notifications.sendFormRejectionEmail(candidate.id, candidate.email);
         }
