@@ -19,7 +19,7 @@ const DEFAULT_TRAINING_NODES = [
   { heading: 'Product and Policy', sub: 'Learn about tools and policies', type: 'self', ctaLink: 'https://adhyayan.brightchamps.com/module/TT0105', date: '' }
 ];
 
-export function CandidateDashboardConfigView() {
+export function CandidateDashboardConfigView({ token }: { token: string | null }) {
     const [subject, setSubject] = useState('Coding');
     const [mockInterviewLink, setMockInterviewLink] = useState('');
     const [mockInterviewPrepText, setMockInterviewPrepText] = useState('');
@@ -29,13 +29,17 @@ export function CandidateDashboardConfigView() {
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        loadConfig(subject);
-    }, [subject]);
+        if (token) {
+            loadConfig(subject);
+        }
+    }, [subject, token]);
 
     const loadConfig = async (subj: string) => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/api/admin/dashboard-config/${subj}`);
+            const res = await fetch(`${API_BASE}/api/admin/dashboard-config/${subj}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (res.ok) {
                 const data = await res.json();
                 setMockInterviewLink(data.mockInterviewLink || '');
@@ -55,7 +59,10 @@ export function CandidateDashboardConfigView() {
         try {
             const res = await fetch(`${API_BASE}/api/admin/dashboard-config`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ subject, mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes })
             });
             if (res.ok) alert('Saved Configuration strictly for ' + subject);

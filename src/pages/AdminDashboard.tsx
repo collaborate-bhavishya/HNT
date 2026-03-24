@@ -1150,7 +1150,7 @@ export default function AdminDashboard() {
                             )}
                         </div>
                     ) : activeTab === 'DASHBOARD_CONFIG' && isMasterAdmin ? (
-                        <CandidateDashboardConfigView />
+                        <CandidateDashboardConfigView token={token} />
                     ) : activeTab === 'QUESTIONS' && isMasterAdmin ? (
                         !isQuestionBankAuthenticated ? (
                         <Card className="flex-1 flex flex-col items-center justify-center bg-white p-8">
