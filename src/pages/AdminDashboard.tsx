@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
-import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail, LayoutDashboard, ShieldCheck } from 'lucide-react';
+import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail, LayoutDashboard, ShieldCheck, Home, Users } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 import { CandidateDashboardConfigView } from '../components/CandidateDashboardConfigView';
 
@@ -122,7 +122,8 @@ export default function AdminDashboard() {
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const [positionFilter, setPositionFilter] = useState<string>('ALL');
-    const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS' | 'HIRING_MANAGERS' | 'DASHBOARD_CONFIG' | 'QUALITY_TEAM'>('CANDIDATES');
+    const [activeTab, setActiveTab] = useState<'HOME' | 'CANDIDATES' | 'QUESTIONS' | 'TEAM' | 'HIRING_MANAGERS' | 'DASHBOARD_CONFIG' | 'QUALITY_TEAM'>('HOME');
+    const [teamTab, setTeamTab] = useState<'HIRING_MANAGERS' | 'QUALITY_TEAM'>('HIRING_MANAGERS');
     const [activeDetailTab, setActiveDetailTab] = useState<'ASSESSMENT' | 'MOCK_INTERVIEW' | 'EMAILS' | 'TIMELINE'>('ASSESSMENT');
 
     const [hiringManagers, setHiringManagers] = useState<HiringManagerInfo[]>([]);
@@ -604,7 +605,18 @@ export default function AdminDashboard() {
                 <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
                     <Button
                         variant="ghost"
-                        className={cn("w-full justify-start gap-3", activeTab === 'CANDIDATES' && positionFilter === 'ALL' && statusFilter === 'ALL' ? "bg-primary-50 text-primary-700" : "text-gray-600")}
+                        className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'HOME' ? "bg-primary-50 text-primary-700 font-semibold" : "text-gray-600 hover:bg-gray-100")}
+                        onClick={() => { setActiveTab('HOME'); }}
+                    >
+                        <Home className="w-5 h-5" />
+                        Home
+                    </Button>
+                    
+                    <div className="h-4" />
+
+                    <Button
+                        variant="ghost"
+                        className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'CANDIDATES' && positionFilter === 'ALL' && statusFilter === 'ALL' ? "bg-primary-50 text-primary-700 font-semibold" : "text-gray-600 hover:bg-gray-100")}
                         onClick={() => { setActiveTab('CANDIDATES'); setPositionFilter('ALL'); setStatusFilter('ALL'); }}
                     >
                         <User className="w-5 h-5" />
@@ -691,21 +703,11 @@ export default function AdminDashboard() {
                         </Button>
                         <Button
                             variant="ghost"
-                            className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'HIRING_MANAGERS' ? "bg-white shadow-sm border border-gray-200 text-primary-700" : "text-gray-700 hover:bg-gray-100")}
-                            onClick={() => { setActiveTab('HIRING_MANAGERS'); fetchHiringManagers(); }}
+                            className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'TEAM' || activeTab === 'HIRING_MANAGERS' || activeTab === 'QUALITY_TEAM' ? "bg-white shadow-sm border border-gray-200 text-primary-700 font-semibold" : "text-gray-700 hover:bg-gray-100")}
+                            onClick={() => { setActiveTab('TEAM'); setTeamTab('HIRING_MANAGERS'); fetchHiringManagers(); fetchQualityMembers(); }}
                         >
-                            <User className="w-5 h-5" />
-                            Hiring Managers
-                            <span className="ml-auto text-xs bg-gray-200 px-2 py-0.5 rounded-full text-gray-700">{hiringManagers.length}</span>
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'QUALITY_TEAM' ? "bg-white shadow-sm border border-gray-200 text-primary-700" : "text-gray-700 hover:bg-gray-100")}
-                            onClick={() => { setActiveTab('QUALITY_TEAM'); fetchQualityMembers(); }}
-                        >
-                            <ShieldCheck className="w-5 h-5" />
-                            Quality Team
-                            <span className="ml-auto text-xs bg-gray-200 px-2 py-0.5 rounded-full text-gray-700">{qualityMembers.length}</span>
+                            <Users className="w-5 h-5" />
+                            Team
                         </Button>
                     </div>
                 )}
@@ -726,10 +728,10 @@ export default function AdminDashboard() {
                 <header className="bg-white border-b px-8 py-4 flex justify-between items-center text-sans">
                     <div>
                         <h2 className="text-2xl font-semibold text-gray-800">
-                            {activeTab === 'CANDIDATES' ? 'Candidates' : activeTab === 'HIRING_MANAGERS' ? 'Hiring Managers' : activeTab === 'DASHBOARD_CONFIG' ? 'Candidate Dashboard Configuration' : 'Question Bank'}
+                            {activeTab === 'HOME' ? 'Dashboard Overview' : activeTab === 'CANDIDATES' ? 'Candidates' : activeTab === 'TEAM' ? 'Team Management' : activeTab === 'HIRING_MANAGERS' ? 'Hiring Managers' : activeTab === 'DASHBOARD_CONFIG' ? 'Candidate Dashboard Configuration' : 'Question Bank'}
                         </h2>
                         <p className="text-sm text-gray-500">
-                            {activeTab === 'CANDIDATES' ? `${filteredCandidates.length} applicants in view` : activeTab === 'HIRING_MANAGERS' ? 'Manage your hiring team' : activeTab === 'DASHBOARD_CONFIG' ? 'Map subject configurations' : 'Manage your technical question pool'}
+                            {activeTab === 'HOME' ? 'Navigate your modules' : activeTab === 'CANDIDATES' ? `${filteredCandidates.length} applicants in view` : activeTab === 'TEAM' ? 'Manage your organization\'s panels' : activeTab === 'HIRING_MANAGERS' ? 'Manage your hiring team' : activeTab === 'DASHBOARD_CONFIG' ? 'Map subject configurations' : 'Manage your technical question pool'}
                         </p>
                     </div>
                     {activeTab === 'CANDIDATES' && (
@@ -749,7 +751,47 @@ export default function AdminDashboard() {
 
                 <main className="flex-1 overflow-auto p-8 flex gap-8">
                     {/* List View */}
-                    {activeTab === 'CANDIDATES' ? (
+                    {activeTab === 'HOME' ? (
+                        <div className="w-full max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 auto-rows-min">
+                                <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-primary-500 hover:-translate-y-1 bg-gradient-to-br from-white to-primary-50/30" onClick={() => { setActiveTab('CANDIDATES'); setPositionFilter('ALL'); setStatusFilter('ALL'); }}>
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="p-3 bg-primary-100 text-primary-600 rounded-xl"><User className="w-6 h-6" /></div>
+                                        <h3 className="text-xl font-bold text-gray-800">{isMasterAdmin ? 'All Candidates' : 'My Candidates'}</h3>
+                                    </div>
+                                    <p className="text-gray-500 text-sm leading-relaxed">View, track, and manage all candidate applications across the hiring pipeline.</p>
+                                </Card>
+
+                                {isMasterAdmin && (
+                                    <>
+                                        <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-indigo-500 hover:-translate-y-1 bg-gradient-to-br from-white to-indigo-50/30" onClick={() => setActiveTab('QUESTIONS')}>
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl"><Database className="w-6 h-6" /></div>
+                                                <h3 className="text-xl font-bold text-gray-800">Question Bank</h3>
+                                            </div>
+                                            <p className="text-gray-500 text-sm leading-relaxed">Manage the active technical pool for multiple-choice and audio assessments.</p>
+                                        </Card>
+
+                                        <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-emerald-500 hover:-translate-y-1 bg-gradient-to-br from-white to-emerald-50/30" onClick={() => setActiveTab('DASHBOARD_CONFIG')}>
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><LayoutDashboard className="w-6 h-6" /></div>
+                                                <h3 className="text-xl font-bold text-gray-800">Dashboard Config</h3>
+                                            </div>
+                                            <p className="text-gray-500 text-sm leading-relaxed">Configure candidate training nodes and assign global test or mock interview links.</p>
+                                        </Card>
+
+                                        <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-purple-500 hover:-translate-y-1 bg-gradient-to-br from-white to-purple-50/30" onClick={() => { setActiveTab('TEAM'); setTeamTab('HIRING_MANAGERS'); fetchHiringManagers(); fetchQualityMembers(); }}>
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className="p-3 bg-purple-100 text-purple-600 rounded-xl"><Users className="w-6 h-6" /></div>
+                                                <h3 className="text-xl font-bold text-gray-800">Team Management</h3>
+                                            </div>
+                                            <p className="text-gray-500 text-sm leading-relaxed">Organize, edit, and assign subjects for Hiring Managers and the Quality Team.</p>
+                                        </Card>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    ) : activeTab === 'CANDIDATES' ? (
                         <Card className="flex-1 flex flex-col min-h-0 bg-white">
                             {loading ? (
                                 <div className="flex-1 flex items-center justify-center text-gray-400">
@@ -832,8 +874,25 @@ export default function AdminDashboard() {
                                 </div>
                             )}
                         </Card>
-                    ) : activeTab === 'HIRING_MANAGERS' && isMasterAdmin ? (
-                        <Card className="flex-1 flex flex-col bg-white p-8 space-y-8 overflow-hidden min-h-0">
+                    ) : activeTab === 'TEAM' && isMasterAdmin ? (
+                        <div className="flex-1 flex flex-col space-y-6 min-h-0 w-full animate-in fade-in">
+                            <div className="flex bg-gray-100 p-1.5 rounded-xl w-max border border-gray-200/60 shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)]">
+                                <button 
+                                  onClick={() => setTeamTab('HIRING_MANAGERS')} 
+                                  className={cn("px-6 py-2.5 text-sm font-bold rounded-lg transition-all", teamTab === 'HIRING_MANAGERS' ? "bg-white text-gray-900 shadow-sm border border-gray-200/60" : "text-gray-500 hover:text-gray-700")}
+                                >
+                                  Hiring Managers
+                                </button>
+                                <button 
+                                  onClick={() => setTeamTab('QUALITY_TEAM')} 
+                                  className={cn("px-6 py-2.5 text-sm font-bold rounded-lg transition-all", teamTab === 'QUALITY_TEAM' ? "bg-white text-gray-900 shadow-sm border border-gray-200/60" : "text-gray-500 hover:text-gray-700")}
+                                >
+                                  Quality Team
+                                </button>
+                            </div>
+
+                            {teamTab === 'HIRING_MANAGERS' ? (
+                                <Card className="flex-1 flex flex-col bg-white p-8 space-y-8 overflow-hidden min-h-0">
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-xl font-bold text-gray-900">{editingHm ? 'Edit Hiring Manager' : 'Add New Hiring Manager'}</h3>
@@ -940,9 +999,9 @@ export default function AdminDashboard() {
                                 </table>
                                 </div>
                             </div>
-                        </Card>
-                    ) : activeTab === 'QUALITY_TEAM' && isMasterAdmin ? (
-                        <Card className="flex-1 flex flex-col bg-white">
+                                </Card>
+                            ) : (
+                                <Card className="flex-1 flex flex-col bg-white">
                             <div className="p-6 border-b flex justify-between items-center text-sans">
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-800">Quality Team Management</h3>
@@ -1088,9 +1147,12 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
                         </Card>
+                            )}
+                        </div>
                     ) : activeTab === 'DASHBOARD_CONFIG' && isMasterAdmin ? (
                         <CandidateDashboardConfigView />
-                    ) : !isQuestionBankAuthenticated ? (
+                    ) : activeTab === 'QUESTIONS' && isMasterAdmin ? (
+                        !isQuestionBankAuthenticated ? (
                         <Card className="flex-1 flex flex-col items-center justify-center bg-white p-8">
                             <div className="max-w-md w-full space-y-6 text-center animate-in fade-in zoom-in duration-300">
                                 <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 border-[6px] border-amber-50">
@@ -1271,7 +1333,8 @@ export default function AdminDashboard() {
                                 </Card>
                             )}
                         </div>
-                    )}
+                        )
+                    ) : null}
 
                     {/* Overlay Detail View for selected Candidate */}
                     {activeTab === 'CANDIDATES' && (
