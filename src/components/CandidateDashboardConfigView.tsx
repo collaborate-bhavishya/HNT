@@ -115,34 +115,7 @@ export function CandidateDashboardConfigView() {
                         <p className="text-sm text-gray-500 mt-1">Override actions for specific nodes in the primary 5-step application timeline.</p>
                     </div>
                     
-                    <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100">
-                        <label className="text-sm font-bold text-gray-700 block mb-2">Mock Interview Prep - Scheduling Link</label>
-                        <Input 
-                            className="bg-white max-w-2xl h-11 border-gray-300 focus:border-primary-500"
-                            placeholder="e.g. https://calendly.com/your-org/mock-interview-coding"
-                            value={mockInterviewLink}
-                            onChange={(e) => setMockInterviewLink(e.target.value)}
-                        />
-                        <p className="text-xs text-gray-500 mt-2 italic flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary-400"></span>
-                            This URL opens in a new tab when candidates click "Schedule Now" on their Step 4 Hiring node.
-                        </p>
-                    </div>
-                    
                     <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100 space-y-4">
-                        <div>
-                            <label className="text-sm font-bold text-gray-700 block mb-2">Mock Interview - Preparation Text</label>
-                            <textarea 
-                                className="w-full flex min-h-[80px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 shadow-sm"
-                                placeholder="Enter instructions, syllabus topics, or preparation guidelines for the candidate..."
-                                value={mockInterviewPrepText}
-                                onChange={(e) => setMockInterviewPrepText(e.target.value)}
-                            />
-                            <p className="text-xs text-gray-500 mt-2 italic flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary-400 shrink-0"></span>
-                                This text is sent instantly via email to the candidate when they are marked as 'Selected'.
-                            </p>
-                        </div>
                         <div>
                             <label className="text-sm font-bold text-gray-700 block mb-2">Mock Interview - Preparation Resource Link</label>
                             <Input 
@@ -151,6 +124,10 @@ export function CandidateDashboardConfigView() {
                                 value={mockInterviewPrepLink}
                                 onChange={(e) => setMockInterviewPrepLink(e.target.value)}
                             />
+                            <p className="text-xs text-gray-500 mt-2 italic flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary-400 shrink-0"></span>
+                                This link is sent instantly via email to the candidate when they are marked as 'Selected'.
+                            </p>
                         </div>
                     </div>
                 </div>
