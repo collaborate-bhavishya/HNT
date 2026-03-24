@@ -462,6 +462,31 @@ export class ApplicationsService {
             'INTERVIEW_SCHEDULED', 
             `Mock interview scheduled for ${new Date(scheduledAt).toLocaleString()}`
         );
+
+        const candidate = await this.prisma.candidate.findUnique({
+            where: { id: candidateId },
+            include: { hiringManager: true, qualityTeam: true }
+        });
+
+        if (candidate) {
+            const candidateName = `${candidate.firstName} ${candidate.lastName}`;
+            const manager = candidate.hiringManager || candidate.qualityTeam;
+            const managerName = manager?.name || 'Interviewer';
+            const managerEmail = manager?.email;
+
+            if (managerEmail) {
+                await this.notifications.sendMockInterviewInvite(
+                    candidate.id,
+                    candidate.email,
+                    candidateName,
+                    managerEmail,
+                    managerName,
+                    new Date(scheduledAt),
+                    meetingLink
+                );
+            }
+        }
+
         return interview;
     }
 }

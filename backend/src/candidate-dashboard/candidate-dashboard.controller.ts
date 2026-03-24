@@ -18,6 +18,7 @@ export class CandidateDashboardController {
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
+        mockInterview: true,
       },
     });
 
@@ -51,6 +52,7 @@ export class CandidateDashboardController {
         completedAt: assessment.completedAt,
       } : null,
       mockInterviewLink: config?.mockInterviewLink || null,
+      mockInterviewDate: candidate.mockInterview?.scheduledAt || null,
       trainingSteps: config?.trainingNodes || null,
       timelineSteps: [
         { 

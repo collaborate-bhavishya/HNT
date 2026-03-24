@@ -183,8 +183,87 @@ export class NotificationsService {
                 to: email,
                 subject: `Application Update — ${this.companyName} Teaching Position`,
                 text: `Thank you for taking the time and effort to apply. We truly appreciate your interest. Unfortunately, we will not be moving forward with your application at this time. We wish you the very best in your future endeavors. — ${this.companyName} Hiring Team`,
-                html: this.wrapInTemplate(body),
             });
         }
+    }
+
+    async sendMockInterviewInvite(candidateId: string, candidateEmail: string, candidateName: string, managerEmail: string, managerName: string, scheduledAt: Date, meetingLink: string) {
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const formatICSDate = (d: Date) => {
+            return d.getUTCFullYear().toString() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + 'T' +
+                   pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z';
+        };
+
+        const dtStart = formatICSDate(scheduledAt);
+        const dtEnd = formatICSDate(new Date(scheduledAt.getTime() + 60 * 60 * 1000)); // 1 hour duration
+        const dtStamp = formatICSDate(new Date());
+
+        const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//BrightChamps//Hiring//EN
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+UID:${candidateId}-${Date.now()}
+DTSTAMP:${dtStamp}
+DTSTART:${dtStart}
+DTEND:${dtEnd}
+SUMMARY:Mock Interview - ${candidateName}
+DESCRIPTION:Mock Interview Meeting Link: ${meetingLink}
+LOCATION:${meetingLink}
+END:VEVENT
+END:VCALENDAR`;
+
+        const attachment = {
+            content: Buffer.from(icsContent).toString('base64'),
+            filename: 'invite.ics',
+            type: 'text/calendar',
+            disposition: 'attachment',
+        };
+
+        const body = `
+          <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6">Dear ${candidateName},</p>
+          <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Your mock interview has been successfully scheduled.</p>
+          <div style="margin:24px 0;padding:20px;background-color:#f0f4ff;border-radius:8px;border-left:4px solid #4f46e5">
+            <p style="margin:0 0 8px;color:#374151;font-size:14px;font-weight:600">Interview Details:</p>
+            <ul style="margin:0;padding:0 0 0 18px;color:#374151;font-size:14px;line-height:1.8">
+              <li><strong>Date & Time:</strong> ${scheduledAt.toLocaleString()}</li>
+              <li><strong>Interviewer:</strong> ${managerName}</li>
+              <li><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color:#4f46e5">${meetingLink}</a></li>
+            </ul>
+          </div>
+          <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Best regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
+
+        // Send to Candidate
+        await this.sendMail(candidateId, {
+            from: this.getFrom(),
+            to: candidateEmail,
+            subject: `Invitation: Mock Interview with ${this.companyName}`,
+            text: `Your mock interview is scheduled for ${scheduledAt.toLocaleString()}. Join link: ${meetingLink}`,
+            html: this.wrapInTemplate(body),
+            attachments: [attachment]
+        });
+
+        const managerBody = `
+          <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6">Dear ${managerName},</p>
+          <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">A new mock interview has been scheduled with candidate <strong>${candidateName}</strong>.</p>
+          <div style="margin:24px 0;padding:20px;background-color:#fef3c7;border-radius:8px;border-left:4px solid #f59e0b">
+            <p style="margin:0 0 8px;color:#92400e;font-size:14px;font-weight:600">Interview Details:</p>
+            <ul style="margin:0;padding:0 0 0 18px;color:#92400e;font-size:14px;line-height:1.8">
+              <li><strong>Date & Time:</strong> ${scheduledAt.toLocaleString()}</li>
+              <li><strong>Candidate Email:</strong> ${candidateEmail}</li>
+              <li><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color:#92400e">${meetingLink}</a></li>
+            </ul>
+          </div>
+          <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Best regards,<br><strong>System Notification</strong></p>`;
+
+        // Send to Manager
+        await this.sendMail("", {
+            from: this.getFrom(),
+            to: managerEmail,
+            subject: `Scheduled Mock Interview: ${candidateName}`,
+            text: `Mock interview with ${candidateName} is scheduled for ${scheduledAt.toLocaleString()}. Join link: ${meetingLink}`,
+            html: this.wrapInTemplate(managerBody),
+            attachments: [attachment]
+        });
     }
 }
