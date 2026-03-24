@@ -1419,6 +1419,9 @@ export default function AdminDashboard() {
                                                                 <option value="Math">Math</option>
                                                                 <option value="Science">Science</option>
                                                                 <option value="English">English</option>
+                                                                <option value="Robotics">Robotics</option>
+                                                                <option value="Rubik's Cube">Rubik's Cube</option>
+                                                                <option value="Chess">Chess</option>
                                                             </select>
                                                         </div>
                                                         <div>
