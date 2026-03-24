@@ -525,8 +525,19 @@ export default function AdminDashboard() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: loginEmail, password: loginPassword }),
             });
+            
+            if (res.status === 429) {
+                throw new Error('Too many requests. Please try again after 15 minutes.');
+            }
+
+            const contentType = res.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned an unexpected response. Please try again.');
+            }
+
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Invalid credentials');
+            
             setUserRole(data.role);
             setUserId(data.id || null);
             setUserName(data.name);
