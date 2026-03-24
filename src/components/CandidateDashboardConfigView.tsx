@@ -22,6 +22,8 @@ const DEFAULT_TRAINING_NODES = [
 export function CandidateDashboardConfigView() {
     const [subject, setSubject] = useState('Coding');
     const [mockInterviewLink, setMockInterviewLink] = useState('');
+    const [mockInterviewPrepText, setMockInterviewPrepText] = useState('');
+    const [mockInterviewPrepLink, setMockInterviewPrepLink] = useState('');
     const [trainingNodes, setTrainingNodes] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -37,6 +39,8 @@ export function CandidateDashboardConfigView() {
             if (res.ok) {
                 const data = await res.json();
                 setMockInterviewLink(data.mockInterviewLink || '');
+                setMockInterviewPrepText(data.mockInterviewPrepText || '');
+                setMockInterviewPrepLink(data.mockInterviewPrepLink || '');
                 setTrainingNodes(data.trainingNodes && data.trainingNodes.length > 0 ? data.trainingNodes : DEFAULT_TRAINING_NODES);
             }
         } catch (e) {
@@ -52,7 +56,7 @@ export function CandidateDashboardConfigView() {
             const res = await fetch(`${API_BASE}/api/admin/dashboard-config`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subject, mockInterviewLink, trainingNodes })
+                body: JSON.stringify({ subject, mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes })
             });
             if (res.ok) alert('Saved Configuration strictly for ' + subject);
         } catch (e) {
@@ -123,6 +127,31 @@ export function CandidateDashboardConfigView() {
                             <span className="w-1.5 h-1.5 rounded-full bg-primary-400"></span>
                             This URL opens in a new tab when candidates click "Schedule Now" on their Step 4 Hiring node.
                         </p>
+                    </div>
+                    
+                    <div className="bg-gray-50/50 p-5 rounded-xl border border-gray-100 space-y-4">
+                        <div>
+                            <label className="text-sm font-bold text-gray-700 block mb-2">Mock Interview - Preparation Text</label>
+                            <textarea 
+                                className="w-full flex min-h-[80px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 shadow-sm"
+                                placeholder="Enter instructions, syllabus topics, or preparation guidelines for the candidate..."
+                                value={mockInterviewPrepText}
+                                onChange={(e) => setMockInterviewPrepText(e.target.value)}
+                            />
+                            <p className="text-xs text-gray-500 mt-2 italic flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary-400 shrink-0"></span>
+                                This text is sent instantly via email to the candidate when they are marked as 'Selected'.
+                            </p>
+                        </div>
+                        <div>
+                            <label className="text-sm font-bold text-gray-700 block mb-2">Mock Interview - Preparation Resource Link</label>
+                            <Input 
+                                className="bg-white max-w-2xl h-11 border-gray-300 focus:border-primary-500"
+                                placeholder="e.g. https://docs.google.com/document/d/..."
+                                value={mockInterviewPrepLink}
+                                onChange={(e) => setMockInterviewPrepLink(e.target.value)}
+                            />
+                        </div>
                     </div>
                 </div>
 

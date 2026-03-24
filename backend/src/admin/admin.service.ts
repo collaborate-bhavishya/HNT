@@ -51,11 +51,11 @@ export class AdminService {
     }
 
     async saveDashboardConfig(data: any) {
-        const { subject, mockInterviewLink, trainingNodes } = data;
+        const { subject, mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes } = data;
         return this.prisma.subjectDashboardConfig.upsert({
             where: { subject },
-            update: { mockInterviewLink, trainingNodes },
-            create: { subject, mockInterviewLink, trainingNodes }
+            update: { mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes },
+            create: { subject, mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes }
         });
     }
 }

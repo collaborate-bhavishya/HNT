@@ -154,6 +154,29 @@ export class NotificationsService {
         });
     }
 
+    async sendMockInterviewPrepEmail(candidateId: string, email: string, prepText?: string, prepLink?: string) {
+        const bodyContent = prepText ? `<p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">${prepText.replace(/\n/g, '<br>')}</p>` : '';
+        const linkContent = prepLink ? `<div style="text-align:center;margin:28px 0"><a href="${prepLink}" target="_blank" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.3px">Mock Interview Preparation Materials</a></div>` : '';
+
+        const body = `
+          <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6">Dear Applicant,</p>
+          <div style="margin:0 0 24px;padding:24px;background-color:#ecfdf5;border-radius:8px;border-left:4px solid #10b981;text-align:center">
+            <p style="margin:0;color:#065f46;font-size:20px;font-weight:700">Congratulations! 🎉</p>
+          </div>
+          <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Your excellent performance on the technical assessment has moved you forward to the next stage: the <strong>Mock Interview</strong>.</p>
+          ${bodyContent}
+          ${linkContent}
+          <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">We look forward to speaking with you!<br><strong>${this.companyName} Hiring Team</strong></p>`;
+
+        await this.sendMail(candidateId, {
+            from: this.getFrom(),
+            to: email,
+            subject: `Next Steps: Prepare for your Mock Interview — ${this.companyName}`,
+            text: `Congratulations! You have been selected for the Mock Interview phase. ${prepText || ''} ${prepLink || ''}`,
+            html: this.wrapInTemplate(body),
+        });
+    }
+
     async sendFinalDecisionEmail(candidateId: string, email: string, status: string) {
         if (status === 'SELECTED') {
             const body = `

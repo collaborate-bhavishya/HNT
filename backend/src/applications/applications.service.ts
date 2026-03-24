@@ -296,7 +296,17 @@ export class ApplicationsService {
             data,
         });
 
-        if (status === 'SELECTED' || status === 'REJECTED_FINAL' || status === 'SELECTED_FOR_TRAINING') {
+        if (status === 'SELECTED') {
+            const config = await this.prisma.subjectDashboardConfig.findUnique({
+                where: { subject: candidate.position }
+            });
+            await this.notifications.sendMockInterviewPrepEmail(
+                candidate.id, 
+                candidate.email, 
+                config?.mockInterviewPrepText || undefined, 
+                config?.mockInterviewPrepLink || undefined
+            );
+        } else if (status === 'REJECTED_FINAL' || status === 'SELECTED_FOR_TRAINING') {
             await this.notifications.sendFinalDecisionEmail(candidate.id, candidate.email, status);
         }
 

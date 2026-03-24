@@ -121,12 +121,14 @@ model AudioQuestion {
 }
 
 model SubjectDashboardConfig {
-  id                String   @id @default(uuid())
-  subject           String   @unique
-  mockInterviewLink String?
-  trainingNodes     Json?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  subject               String   @unique
+  mockInterviewLink     String?
+  mockInterviewPrepText String?
+  mockInterviewPrepLink String?
+  trainingNodes         Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model EmailLog {
