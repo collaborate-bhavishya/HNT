@@ -6,7 +6,7 @@ import { Plus, Trash2, Save, LayoutDashboard } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-const SUBJECTS = ["Coding", "Math", "Science", "English", "Robotics", "Rubik's Cube", "Chess"];
+const SUBJECTS = ["Coding", "Math", "Science", "English", "Robotics"];
 
 const DEFAULT_TRAINING_NODES = [
   { heading: 'Welcome to Brightchamps', sub: 'Learning more about brightchamps', type: 'self', ctaLink: 'https://adhyayan.brightchamps.com/module/TT0101', date: '' },
