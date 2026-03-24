@@ -164,6 +164,7 @@ export class NotificationsService {
             <p style="margin:0;color:#065f46;font-size:20px;font-weight:700">Congratulations! 🎉</p>
           </div>
           <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Your excellent performance on the technical assessment has moved you forward to the next stage: the <strong>Mock Interview</strong>.</p>
+          <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Our hiring team will reach out to you shortly to schedule your mock interview. In the meantime, please take some time to prepare.</p>
           ${bodyContent}
           ${linkContent}
           <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">We look forward to speaking with you!<br><strong>${this.companyName} Hiring Team</strong></p>`;
