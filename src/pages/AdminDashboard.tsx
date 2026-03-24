@@ -614,21 +614,23 @@ export default function AdminDashboard() {
                     
                     <div className="h-4" />
 
-                    <Button
-                        variant="ghost"
-                        className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'CANDIDATES' && positionFilter === 'ALL' && statusFilter === 'ALL' ? "bg-primary-50 text-primary-700 font-semibold" : "text-gray-600 hover:bg-gray-100")}
-                        onClick={() => { setActiveTab('CANDIDATES'); setPositionFilter('ALL'); setStatusFilter('ALL'); }}
-                    >
-                        <User className="w-5 h-5" />
-                        {isMasterAdmin ? 'All Candidates' : 'My Candidates'}
-                        <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{candidates.length}</span>
-                    </Button>
-
-                    <div className="h-4" />
-                    <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Subjects</div>
-
+                    {/* Section: Candidates */}
                     {activeTab === 'CANDIDATES' && (
                         <>
+                            <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Recruitment</div>
+                            <Button
+                                variant="ghost"
+                                className={cn("w-full justify-start gap-3 transition-colors", positionFilter === 'ALL' && statusFilter === 'ALL' ? "bg-primary-50 text-primary-700 font-semibold" : "text-gray-600 hover:bg-gray-100")}
+                                onClick={() => { setPositionFilter('ALL'); setStatusFilter('ALL'); }}
+                            >
+                                <User className="w-5 h-5" />
+                                {isMasterAdmin ? 'All Candidates' : 'My Candidates'}
+                                <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{candidates.length}</span>
+                            </Button>
+
+                            <div className="h-4" />
+                            <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Subjects</div>
+
                             {uniquePositions.map(pos => {
                                 const posCount = positionCounts[pos] || 0;
                                 const isActivePos = positionFilter === pos;
@@ -652,7 +654,6 @@ export default function AdminDashboard() {
                                             <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{posCount}</span>
                                         </Button>
 
-                                        {/* Nested status filters when this subject is selected */}
                                         {isActivePos && (
                                             <div className="ml-5 pl-3 border-l-2 border-primary-100 space-y-0.5 mt-1 mb-2">
                                                 {Object.entries(statusConfig).map(([key, config]) => {
@@ -680,37 +681,57 @@ export default function AdminDashboard() {
                             })}
                         </>
                     )}
-                </nav>
 
-                {isMasterAdmin && (
-                    <div className="p-4 space-y-1 bg-gray-50/80 border-t">
-                        <div className="px-3 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Admin Settings</div>
-                        <Button
-                            variant="ghost"
-                            className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'QUESTIONS' ? "bg-white shadow-sm border border-gray-200 text-primary-700" : "text-gray-700 hover:bg-gray-100")}
-                            onClick={() => setActiveTab('QUESTIONS')}
-                        >
-                            <Database className="w-5 h-5" />
-                            Question Bank
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'DASHBOARD_CONFIG' ? "bg-white shadow-sm border border-gray-200 text-primary-700" : "text-gray-700 hover:bg-gray-100")}
-                            onClick={() => setActiveTab('DASHBOARD_CONFIG')}
-                        >
-                            <LayoutDashboard className="w-5 h-5" />
-                            Dashboard Config
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className={cn("w-full justify-start gap-3 transition-colors", activeTab === 'TEAM' || activeTab === 'HIRING_MANAGERS' || activeTab === 'QUALITY_TEAM' ? "bg-white shadow-sm border border-gray-200 text-primary-700 font-semibold" : "text-gray-700 hover:bg-gray-100")}
-                            onClick={() => { setActiveTab('TEAM'); setTeamTab('HIRING_MANAGERS'); fetchHiringManagers(); fetchQualityMembers(); }}
-                        >
-                            <Users className="w-5 h-5" />
-                            Team
-                        </Button>
-                    </div>
-                )}
+                    {/* Section: Question Bank */}
+                    {isMasterAdmin && activeTab === 'QUESTIONS' && (
+                        <>
+                            <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Assessments</div>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start gap-3 transition-colors bg-primary-50 text-primary-700 font-semibold"
+                            >
+                                <Database className="w-5 h-5" />
+                                Question Bank
+                            </Button>
+                            <div className="ml-5 pl-3 border-l-2 border-primary-100 space-y-1 mt-2">
+                                <Button variant="ghost" className={cn("w-full justify-start text-xs h-8 px-3", qbTab === 'MCQ' ? "bg-primary-50 text-primary-700 font-medium" : "text-gray-500")} onClick={() => setQbTab('MCQ')}>MCQ Bank</Button>
+                                <Button variant="ghost" className={cn("w-full justify-start text-xs h-8 px-3", qbTab === 'AUDIO' ? "bg-primary-50 text-primary-700 font-medium" : "text-gray-500")} onClick={() => setQbTab('AUDIO')}>Audio Bank</Button>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Section: Dashboard Config */}
+                    {isMasterAdmin && activeTab === 'DASHBOARD_CONFIG' && (
+                        <>
+                            <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Configuration</div>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start gap-3 transition-colors bg-primary-50 text-primary-700 font-semibold"
+                            >
+                                <LayoutDashboard className="w-5 h-5" />
+                                Dashboard Config
+                            </Button>
+                        </>
+                    )}
+
+                    {/* Section: Team Management */}
+                    {isMasterAdmin && activeTab === 'TEAM' && (
+                        <>
+                            <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Organization</div>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start gap-3 transition-colors bg-primary-50 text-primary-700 font-semibold"
+                            >
+                                <Users className="w-5 h-5" />
+                                Team
+                            </Button>
+                            <div className="ml-5 pl-3 border-l-2 border-primary-100 space-y-1 mt-2">
+                                <Button variant="ghost" className={cn("w-full justify-start text-xs h-8 px-3", teamTab === 'HIRING_MANAGERS' ? "bg-primary-50 text-primary-700 font-medium" : "text-gray-500")} onClick={() => setTeamTab('HIRING_MANAGERS')}>Hiring Managers</Button>
+                                <Button variant="ghost" className={cn("w-full justify-start text-xs h-8 px-3", teamTab === 'QUALITY_TEAM' ? "bg-primary-50 text-primary-700 font-medium" : "text-gray-500")} onClick={() => setTeamTab('QUALITY_TEAM')}>Quality Team</Button>
+                            </div>
+                        </>
+                    )}
+                </nav>
 
                 <div className="p-4 border-t space-y-2">
                     <Button variant="outline" className="w-full gap-2" onClick={fetchCandidates}>
@@ -752,40 +773,81 @@ export default function AdminDashboard() {
                 <main className="flex-1 overflow-auto p-8 flex gap-8">
                     {/* List View */}
                     {activeTab === 'HOME' ? (
-                        <div className="w-full max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 auto-rows-min">
-                                <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-primary-500 hover:-translate-y-1 bg-gradient-to-br from-white to-primary-50/30" onClick={() => { setActiveTab('CANDIDATES'); setPositionFilter('ALL'); setStatusFilter('ALL'); }}>
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <div className="p-3 bg-primary-100 text-primary-600 rounded-xl"><User className="w-6 h-6" /></div>
-                                        <h3 className="text-xl font-bold text-gray-800">{isMasterAdmin ? 'All Candidates' : 'My Candidates'}</h3>
+                        <div className="w-full max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 p-4">
+                            <div className="text-left space-y-2 mb-4">
+                                <h1 className="text-4xl font-black text-gray-900 tracking-tight">Welcome, {userName.split(' ')[0]}!</h1>
+                                <p className="text-lg text-gray-500 font-medium">Select a module to manage your recruitment pipeline and assessment tools.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <Card 
+                                    className="group p-8 cursor-pointer hover:shadow-2xl transition-all border-0 ring-1 ring-gray-100 hover:ring-primary-500/50 bg-white relative overflow-hidden" 
+                                    onClick={() => { setActiveTab('CANDIDATES'); setPositionFilter('ALL'); setStatusFilter('ALL'); }}
+                                >
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500 opacity-50" />
+                                    <div className="flex flex-col h-full relative z-10">
+                                        <div className="p-4 bg-primary-100 text-primary-600 rounded-2xl w-fit mb-6 group-hover:bg-primary-600 group-hover:text-white transition-colors duration-300">
+                                            <User className="w-8 h-8" />
+                                        </div>
+                                        <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-primary-700 transition-colors">{isMasterAdmin ? 'Candidate Pipeline' : 'My Candidates'}</h3>
+                                        <p className="text-gray-500 text-base leading-relaxed mb-6">Track applications, evaluate CVs, and manage candidates across all hiring verticals.</p>
+                                        <div className="mt-auto flex items-center text-primary-600 font-bold text-sm uppercase tracking-widest gap-2">
+                                            Enter Module <span className="text-xl group-hover:translate-x-2 transition-transform">→</span>
+                                        </div>
                                     </div>
-                                    <p className="text-gray-500 text-sm leading-relaxed">View, track, and manage all candidate applications across the hiring pipeline.</p>
                                 </Card>
 
                                 {isMasterAdmin && (
                                     <>
-                                        <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-indigo-500 hover:-translate-y-1 bg-gradient-to-br from-white to-indigo-50/30" onClick={() => setActiveTab('QUESTIONS')}>
-                                            <div className="flex items-center gap-4 mb-4">
-                                                <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl"><Database className="w-6 h-6" /></div>
-                                                <h3 className="text-xl font-bold text-gray-800">Question Bank</h3>
+                                        <Card 
+                                            className="group p-8 cursor-pointer hover:shadow-2xl transition-all border-0 ring-1 ring-gray-100 hover:ring-indigo-500/50 bg-white relative overflow-hidden" 
+                                            onClick={() => setActiveTab('QUESTIONS')}
+                                        >
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500 opacity-50" />
+                                            <div className="flex flex-col h-full relative z-10">
+                                                <div className="p-4 bg-indigo-100 text-indigo-600 rounded-2xl w-fit mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
+                                                    <Database className="w-8 h-8" />
+                                                </div>
+                                                <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-indigo-700 transition-colors">Question Bank</h3>
+                                                <p className="text-gray-500 text-base leading-relaxed mb-6">Manage the technical assessment pool for both multiple-choice and audio-based interviews.</p>
+                                                <div className="mt-auto flex items-center text-indigo-600 font-bold text-sm uppercase tracking-widest gap-2">
+                                                    Manage Questions <span className="text-xl group-hover:translate-x-2 transition-transform">→</span>
+                                                </div>
                                             </div>
-                                            <p className="text-gray-500 text-sm leading-relaxed">Manage the active technical pool for multiple-choice and audio assessments.</p>
                                         </Card>
 
-                                        <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-emerald-500 hover:-translate-y-1 bg-gradient-to-br from-white to-emerald-50/30" onClick={() => setActiveTab('DASHBOARD_CONFIG')}>
-                                            <div className="flex items-center gap-4 mb-4">
-                                                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><LayoutDashboard className="w-6 h-6" /></div>
-                                                <h3 className="text-xl font-bold text-gray-800">Dashboard Config</h3>
+                                        <Card 
+                                            className="group p-8 cursor-pointer hover:shadow-2xl transition-all border-0 ring-1 ring-gray-100 hover:ring-emerald-500/50 bg-white relative overflow-hidden" 
+                                            onClick={() => setActiveTab('DASHBOARD_CONFIG')}
+                                        >
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500 opacity-50" />
+                                            <div className="flex flex-col h-full relative z-10">
+                                                <div className="p-4 bg-emerald-100 text-emerald-600 rounded-2xl w-fit mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
+                                                    <LayoutDashboard className="w-8 h-8" />
+                                                </div>
+                                                <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-emerald-700 transition-colors">Dashboard Config</h3>
+                                                <p className="text-gray-500 text-base leading-relaxed mb-6">Configure subject-specific onboarding steps, preparation links, and training materials.</p>
+                                                <div className="mt-auto flex items-center text-emerald-600 font-bold text-sm uppercase tracking-widest gap-2">
+                                                    Set Parameters <span className="text-xl group-hover:translate-x-2 transition-transform">→</span>
+                                                </div>
                                             </div>
-                                            <p className="text-gray-500 text-sm leading-relaxed">Configure candidate training nodes and assign global test or mock interview links.</p>
                                         </Card>
 
-                                        <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-l-4 border-l-purple-500 hover:-translate-y-1 bg-gradient-to-br from-white to-purple-50/30" onClick={() => { setActiveTab('TEAM'); setTeamTab('HIRING_MANAGERS'); fetchHiringManagers(); fetchQualityMembers(); }}>
-                                            <div className="flex items-center gap-4 mb-4">
-                                                <div className="p-3 bg-purple-100 text-purple-600 rounded-xl"><Users className="w-6 h-6" /></div>
-                                                <h3 className="text-xl font-bold text-gray-800">Team Management</h3>
+                                        <Card 
+                                            className="group p-8 cursor-pointer hover:shadow-2xl transition-all border-0 ring-1 ring-gray-100 hover:ring-purple-500/50 bg-white relative overflow-hidden" 
+                                            onClick={() => { setActiveTab('TEAM'); setTeamTab('HIRING_MANAGERS'); fetchHiringManagers(); fetchQualityMembers(); }}
+                                        >
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500 opacity-50" />
+                                            <div className="flex flex-col h-full relative z-10">
+                                                <div className="p-4 bg-purple-100 text-purple-600 rounded-2xl w-fit mb-6 group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300">
+                                                    <Users className="w-8 h-8" />
+                                                </div>
+                                                <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-purple-700 transition-colors">Team Management</h3>
+                                                <p className="text-gray-500 text-base leading-relaxed mb-6">Organize your personnel, manage access levels, and assign subjects for your panels.</p>
+                                                <div className="mt-auto flex items-center text-purple-600 font-bold text-sm uppercase tracking-widest gap-2">
+                                                    Manage Team <span className="text-xl group-hover:translate-x-2 transition-transform">→</span>
+                                                </div>
                                             </div>
-                                            <p className="text-gray-500 text-sm leading-relaxed">Organize, edit, and assign subjects for Hiring Managers and the Quality Team.</p>
                                         </Card>
                                     </>
                                 )}
