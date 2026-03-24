@@ -123,7 +123,7 @@ export default function AdminDashboard() {
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const [positionFilter, setPositionFilter] = useState<string>('ALL');
     const [activeTab, setActiveTab] = useState<'CANDIDATES' | 'QUESTIONS' | 'HIRING_MANAGERS' | 'DASHBOARD_CONFIG' | 'QUALITY_TEAM'>('CANDIDATES');
-    const [activeDetailTab, setActiveDetailTab] = useState<'ASSESSMENT'>('ASSESSMENT');
+    const [activeDetailTab, setActiveDetailTab] = useState<'ASSESSMENT' | 'MOCK_INTERVIEW' | 'EMAILS' | 'TIMELINE'>('ASSESSMENT');
 
     const [hiringManagers, setHiringManagers] = useState<HiringManagerInfo[]>([]);
     const [activeManagers, setActiveManagers] = useState<HiringManagerInfo[]>([]);
@@ -143,6 +143,49 @@ export default function AdminDashboard() {
 
     const [sendingReminder, setSendingReminder] = useState(false);
     const [rejectionComment, setRejectionComment] = useState('');
+
+    // --- Detail Slide-over State ---
+    const [candidateEmails, setCandidateEmails] = useState<any[]>([]);
+    const [candidateTimeline, setCandidateTimeline] = useState<any[]>([]);
+    const [candidateMockInterview, setCandidateMockInterview] = useState<any>(null);
+    const [isSubTabLoading, setIsSubTabLoading] = useState(false);
+    const [mockInterviewDate, setMockInterviewDate] = useState('');
+    const [mockInterviewTime, setMockInterviewTime] = useState('');
+    const [mockInterviewLinkInput, setMockInterviewLinkInput] = useState('');
+
+    useEffect(() => {
+        if (!selectedCandidate?.id) return;
+        const fetchTabData = async () => {
+            if (activeDetailTab === 'ASSESSMENT') return;
+            setIsSubTabLoading(true);
+            try {
+                if (activeDetailTab === 'EMAILS') {
+                    const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/emails`, { headers: { 'Authorization': `Bearer ${token}` } });
+                    if (res.ok) setCandidateEmails(await res.json());
+                } else if (activeDetailTab === 'TIMELINE') {
+                    const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/timeline`, { headers: { 'Authorization': `Bearer ${token}` } });
+                    if (res.ok) setCandidateTimeline(await res.json());
+                } else if (activeDetailTab === 'MOCK_INTERVIEW') {
+                    const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/mock-interview`, { headers: { 'Authorization': `Bearer ${token}` } });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setCandidateMockInterview(data);
+                        if (data && data.scheduledAt) {
+                            const d = new Date(data.scheduledAt);
+                            setMockInterviewDate(d.toISOString().substring(0, 10));
+                            setMockInterviewTime(d.toTimeString().substring(0, 5));
+                        }
+                        if (data && data.meetingLink) setMockInterviewLinkInput(data.meetingLink);
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setIsSubTabLoading(false);
+            }
+        };
+        fetchTabData();
+    }, [activeDetailTab, selectedCandidate?.id, token]);
 
     // Question management state
     const [uploading, setUploading] = useState(false);
@@ -1346,12 +1389,20 @@ export default function AdminDashboard() {
                                         </Button>
 
                                         <div className="px-8 pt-6 border-b border-gray-200 flex gap-6">
-                                            <button 
-                                                className={cn("pb-3 text-sm font-bold border-b-2 transition-colors", activeDetailTab === 'ASSESSMENT' ? "border-primary-600 text-primary-600" : "border-transparent text-gray-500 hover:text-gray-700")}
-                                                onClick={() => setActiveDetailTab('ASSESSMENT')}
-                                            >
-                                                Assessment
-                                            </button>
+                                            {[
+                                                { id: 'ASSESSMENT', label: 'Assessment' },
+                                                { id: 'MOCK_INTERVIEW', label: 'Mock Interview' },
+                                                { id: 'EMAILS', label: 'Emails' },
+                                                { id: 'TIMELINE', label: 'Timeline' }
+                                            ].map(tab => (
+                                                <button
+                                                    key={tab.id}
+                                                    className={cn("pb-3 text-sm font-bold border-b-2 transition-colors", activeDetailTab === tab.id ? "border-primary-600 text-primary-600" : "border-transparent text-gray-500 hover:text-gray-700")}
+                                                    onClick={() => setActiveDetailTab(tab.id as any)}
+                                                >
+                                                    {tab.label}
+                                                </button>
+                                            ))}
                                         </div>
 
                                         <div className="flex-1 overflow-y-auto relative p-8 max-w-4xl space-y-8">
@@ -1603,6 +1654,53 @@ export default function AdminDashboard() {
                                              </div>
                                          </div>
                                      )}
+                                     </>
+                                )}
+
+                                {activeDetailTab === 'MOCK_INTERVIEW' && (
+                                    <>
+                                        {/* Mock Interview Scheduling */}
+                                        <div className="space-y-4 mb-8">
+                                            <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Schedule Mock Interview</h4>
+                                            <div className="bg-gray-50 border border-gray-200 p-5 rounded-xl space-y-4">
+                                                {candidateMockInterview?.status === 'SCHEDULED' && (
+                                                    <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-md text-sm mb-4">
+                                                        <strong>Interview Scheduled</strong> for {new Date(candidateMockInterview.scheduledAt).toLocaleString()}
+                                                    </div>
+                                                )}
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-bold text-gray-600">Date</label>
+                                                        <Input type="date" value={mockInterviewDate} onChange={e => setMockInterviewDate(e.target.value)} />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-bold text-gray-600">Time</label>
+                                                        <Input type="time" value={mockInterviewTime} onChange={e => setMockInterviewTime(e.target.value)} />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-gray-600">Meeting Link</label>
+                                                    <Input placeholder="https://meet.google.com/..." value={mockInterviewLinkInput} onChange={e => setMockInterviewLinkInput(e.target.value)} />
+                                                </div>
+                                                <Button 
+                                                    className="w-full bg-primary-600 hover:bg-primary-700 text-white"
+                                                    onClick={async () => {
+                                                        if (!mockInterviewDate || !mockInterviewTime || !mockInterviewLinkInput) return alert('Fill all fields');
+                                                        const dt = `${mockInterviewDate}T${mockInterviewTime}`;
+                                                        try {
+                                                            const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/mock-interview`, {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                body: JSON.stringify({ scheduledAt: dt, meetingLink: mockInterviewLinkInput })
+                                                            });
+                                                            if (res.ok) alert('Interview Scheduled!');
+                                                        } catch {}
+                                                    }}
+                                                >
+                                                    Save & Schedule
+                                                </Button>
+                                            </div>
+                                        </div>
 
                                     {/* Quality Review Submission (Hiring Manager / Master Admin) */}
                                     {(isMasterAdmin || userRole === 'HIRING_MANAGER') && (selectedCandidate.status === 'SELECTED' || selectedCandidate.status === 'QUALITY_REVIEW_PENDING') && (
@@ -1756,8 +1854,55 @@ export default function AdminDashboard() {
                                             </div>
                                         </div>
                                     )}
+                                    </>
+                                )}
 
-                                    {/* Status badge — view-only for final decisions */}
+                                {activeDetailTab === 'EMAILS' && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Email History</h4>
+                                        {candidateEmails.length === 0 ? (
+                                            <p className="text-sm text-gray-500">No emails logged for this candidate.</p>
+                                        ) : (
+                                            candidateEmails.map(email => (
+                                                <div key={email.id} className="border border-gray-200 rounded-xl p-4 space-y-2">
+                                                    <div className="flex justify-between items-start">
+                                                        <h5 className="font-bold text-gray-800 text-sm">{email.subject}</h5>
+                                                        <span className="text-xs text-gray-500">{new Date(email.sentAt).toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg border border-gray-100 overflow-x-auto" dangerouslySetInnerHTML={{ __html: email.body }} />
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+
+                                {activeDetailTab === 'TIMELINE' && (
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-6 pl-10 md:pl-0 md:text-center shrink-0">Journey Timeline</h4>
+                                        <div className="relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent pt-4">
+                                            {candidateTimeline.length === 0 ? (
+                                                <p className="text-sm text-gray-500 text-center relative z-10">No events found.</p>
+                                            ) : (
+                                                candidateTimeline.map(event => (
+                                                    <div key={event.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group mb-8">
+                                                        <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-200 text-slate-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 relative z-10">
+                                                            <Clock className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative z-10 hover:border-primary-300 transition-colors">
+                                                            <div className="flex items-center justify-between space-x-2 mb-1">
+                                                                <div className="font-bold text-slate-900 text-sm">{event.action}</div>
+                                                                <time className="text-xs text-slate-400">{new Date(event.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
+                                                            </div>
+                                                            <div className="text-slate-600 text-sm mt-2">{event.description}</div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Status badge — view-only for final decisions */}
                                     {selectedCandidate.status === 'SELECTED' && (
                                         <div className="bg-green-50 border border-green-200 p-4 rounded-xl text-center">
                                             <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto mb-2" />
@@ -1782,8 +1927,7 @@ export default function AdminDashboard() {
                                             )}
                                         </div>
                                     )}
-                                                </>
-                                            )}
+
                                         </div>
                                     </div>
                                 </div>

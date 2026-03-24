@@ -88,4 +88,32 @@ export class ApplicationsController {
     ) {
         return this.applicationsService.finalizeQualityReview(id, qualityId, scores, decision);
     }
+
+    @Get(':id/emails')
+    @UseGuards(AuthGuard('jwt'))
+    async getEmails(@Param('id') id: string) {
+        return this.applicationsService.getEmails(id);
+    }
+
+    @Get(':id/timeline')
+    @UseGuards(AuthGuard('jwt'))
+    async getTimeline(@Param('id') id: string) {
+        return this.applicationsService.getTimeline(id);
+    }
+
+    @Get(':id/mock-interview')
+    @UseGuards(AuthGuard('jwt'))
+    async getMockInterview(@Param('id') id: string) {
+        return this.applicationsService.getMockInterview(id);
+    }
+
+    @Post(':id/mock-interview')
+    @UseGuards(AuthGuard('jwt'))
+    async scheduleMockInterview(
+        @Param('id') id: string,
+        @Body('scheduledAt') scheduledAt: string,
+        @Body('meetingLink') meetingLink: string,
+    ) {
+        return this.applicationsService.scheduleMockInterview(id, scheduledAt, meetingLink);
+    }
 }

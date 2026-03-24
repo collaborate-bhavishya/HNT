@@ -352,7 +352,7 @@ export class AssessmentService {
                     }
                 });
 
-                await this.notifications.sendFormRejectionEmail(updatedCandidate.email);
+                await this.notifications.sendFormRejectionEmail(updatedCandidate.id, updatedCandidate.email);
             }
 
             return {

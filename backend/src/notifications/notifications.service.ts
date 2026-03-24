@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../prisma.service';
 const sgMail = require('@sendgrid/mail');
 
 @Injectable()
@@ -6,7 +7,7 @@ export class NotificationsService {
     private readonly logger = new Logger(NotificationsService.name);
     private readonly companyName = process.env.COMPANY_NAME || 'BrightChamps';
 
-    constructor() {
+    constructor(private prisma: PrismaService) {
         if (process.env.SENDGRID_API_KEY) {
             sgMail.setApiKey(process.env.SENDGRID_API_KEY);
             this.logger.log('SendGrid API Key successfully initialized');
@@ -47,7 +48,7 @@ export class NotificationsService {
 </html>`;
     }
 
-    private async sendMail(options: any) {
+    private async sendMail(candidateId: string, options: any) {
         if (!process.env.SENDGRID_API_KEY) {
             this.logger.warn(`Transporter not initialized with SendGrid Key. Cannot send email to ${options.to}`);
             return;
@@ -56,6 +57,16 @@ export class NotificationsService {
         try {
             this.logger.log(`Attempting to send email: ${options.subject} -> ${options.to} from ${JSON.stringify(options.from)}`);
             await sgMail.send(options);
+            
+            if (candidateId) {
+                await this.prisma.emailLog.create({
+                    data: {
+                        candidateId,
+                        subject: options.subject,
+                        body: options.html || options.text || '',
+                    }
+                });
+            }
             this.logger.log(`Email Sent via SendGrid: ${options.subject} -> ${options.to}`);
         } catch (error: any) {
             this.logger.error(`Failed to send email to ${options.to}`, error?.message || error);
@@ -65,7 +76,7 @@ export class NotificationsService {
         }
     }
 
-    async sendFormRejectionEmail(email: string) {
+    async sendFormRejectionEmail(candidateId: string, email: string) {
         const body = `
           <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6">Dear Applicant,</p>
           <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Thank you for taking the time to apply for a teaching position with <strong>${this.companyName}</strong>. We appreciate your interest in joining our team.</p>
@@ -74,7 +85,7 @@ export class NotificationsService {
           <p style="margin:0;color:#374151;font-size:15px;line-height:1.6">We wish you all the best in your career ahead.</p>
           <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Warm regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
 
-        await this.sendMail({
+        await this.sendMail(candidateId, {
             from: this.getFrom(),
             to: email,
             subject: `Application Update — ${this.companyName} Teaching Position`,
@@ -83,7 +94,7 @@ export class NotificationsService {
         });
     }
 
-    async sendAssessmentLinkEmail(email: string, link: string, pin?: string) {
+    async sendAssessmentLinkEmail(candidateId: string, email: string, link: string, pin?: string) {
         const body = `
           <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6">Dear Applicant,</p>
           <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">Great news! Your application has been shortlisted, and we'd like to invite you to the next stage of our hiring process — a <strong>Technical Assessment</strong>.</p>
@@ -112,7 +123,7 @@ export class NotificationsService {
           <p style="margin:0;color:#374151;font-size:15px;line-height:1.6">If you have any questions, feel free to reach out to us.</p>
           <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Good luck!<br><strong>${this.companyName} Hiring Team</strong></p>`;
 
-        await this.sendMail({
+        await this.sendMail(candidateId, {
             from: this.getFrom(),
             to: email,
             subject: `You're Shortlisted! Complete Your Assessment — ${this.companyName}`,
@@ -121,7 +132,7 @@ export class NotificationsService {
         });
     }
 
-    async sendAssessmentReminderEmail(email: string, link: string) {
+    async sendAssessmentReminderEmail(candidateId: string, email: string, link: string) {
         const body = `
           <p style="margin:0 0 16px;color:#111827;font-size:15px;line-height:1.6">Dear Applicant,</p>
           <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6">This is a friendly reminder that your <strong>Technical Assessment</strong> for ${this.companyName} is still pending.</p>
@@ -134,7 +145,7 @@ export class NotificationsService {
           <p style="margin:0;color:#374151;font-size:15px;line-height:1.6">If you have any questions or face any issues, feel free to reach out to us.</p>
           <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Best regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
 
-        await this.sendMail({
+        await this.sendMail(candidateId, {
             from: this.getFrom(),
             to: email,
             subject: `Reminder: Complete Your Assessment — ${this.companyName}`,
@@ -143,7 +154,7 @@ export class NotificationsService {
         });
     }
 
-    async sendFinalDecisionEmail(email: string, status: string) {
+    async sendFinalDecisionEmail(candidateId: string, email: string, status: string) {
         if (status === 'SELECTED') {
             const body = `
               <div style="margin:0 0 24px;padding:24px;background-color:#ecfdf5;border-radius:8px;border-left:4px solid #10b981;text-align:center">
@@ -153,7 +164,7 @@ export class NotificationsService {
               <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Please wait for the next steps — our team will connect with you shortly with further details.</p>
               <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Warm regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
 
-            await this.sendMail({
+            await this.sendMail(candidateId, {
                 from: this.getFrom(),
                 to: email,
                 subject: `Congratulations! Welcome to ${this.companyName}`,
@@ -167,7 +178,7 @@ export class NotificationsService {
               <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">We wish you the very best in your future endeavors.</p>
               <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Kind regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
 
-            await this.sendMail({
+            await this.sendMail(candidateId, {
                 from: this.getFrom(),
                 to: email,
                 subject: `Application Update — ${this.companyName} Teaching Position`,

@@ -145,6 +145,8 @@ export class ApplicationsService {
             },
         });
 
+        await this.logTimelineEvent(candidate.id, 'APPLIED', `Candidate applied for position: ${dto.position}`);
+
         let assessmentToken: string | null = null;
         if (status === 'TESTING') {
             const assessment = await this.prisma.assessment.create({
@@ -158,9 +160,9 @@ export class ApplicationsService {
             assessmentToken = assessment.token;
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
             const link = `${frontendUrl}/assessment/${assessmentToken}`;
-            await this.notifications.sendAssessmentLinkEmail(candidate.email, link, candidate.pin || undefined);
+            await this.notifications.sendAssessmentLinkEmail(candidate.id, candidate.email, link, candidate.pin || undefined);
         } else if (status === 'REJECTED_FORM') {
-            await this.notifications.sendFormRejectionEmail(candidate.email);
+            await this.notifications.sendFormRejectionEmail(candidate.id, candidate.email);
         }
 
         // Auto-assign hiring manager if passed form screening
@@ -268,17 +270,20 @@ export class ApplicationsService {
 
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
         const link = `${frontendUrl}/assessment/${assessment.token}`;
-        await this.notifications.sendAssessmentReminderEmail(candidate.email, link);
+        await this.notifications.sendAssessmentReminderEmail(candidate.id, candidate.email, link);
+        await this.logTimelineEvent(candidateId, 'ASSESSMENT_REMINDER', `Reminder email sent (Count: ${updated.reminderCount})`);
 
         return { message: 'Reminder sent successfully', reminderCount: updated.reminderCount, lastReminderAt: updated.lastReminderAt };
     }
 
     async assignHiringManager(candidateId: string, hiringManagerId: string | null) {
-        return this.prisma.candidate.update({
+        const result = await this.prisma.candidate.update({
             where: { id: candidateId },
             data: { hiringManagerId },
             include: { hiringManager: { select: { id: true, name: true } } },
         });
+        await this.logTimelineEvent(candidateId, 'MANAGER_ASSIGNED', `Assigned to ${result.hiringManager?.name || 'None'}`);
+        return result;
     }
 
     async updateCandidateStatus(id: string, status: string, comment?: string) {
@@ -292,18 +297,22 @@ export class ApplicationsService {
         });
 
         if (status === 'SELECTED' || status === 'REJECTED_FINAL' || status === 'SELECTED_FOR_TRAINING') {
-            await this.notifications.sendFinalDecisionEmail(candidate.email, status);
+            await this.notifications.sendFinalDecisionEmail(candidate.id, candidate.email, status);
         }
+
+        await this.logTimelineEvent(id, 'STATUS_UPDATED', `Candidate status updated to ${status}`);
 
         return candidate;
     }
 
     async updateCandidatePosition(id: string, position: string) {
-        return this.prisma.candidate.update({
+        const candidate = await this.prisma.candidate.update({
             where: { id },
             data: { position },
             include: { hiringManager: { select: { id: true, name: true } } },
         });
+        await this.logTimelineEvent(id, 'POSITION_UPDATED', `Position updated to ${position}`);
+        return candidate;
     }
 
     async submitQualityReviewLink(candidateId: string, link: string) {
@@ -317,6 +326,8 @@ export class ApplicationsService {
 
         // Auto-assign quality team member
         await this.autoAssignQualityTeam(candidate.id, candidate.position);
+
+        await this.logTimelineEvent(candidateId, 'QUALITY_REVIEW_SUBMITTED', 'Candidate moved to Quality Review Queue');
 
         return candidate;
     }
@@ -334,7 +345,9 @@ export class ApplicationsService {
             },
         });
 
-        await this.notifications.sendFinalDecisionEmail(candidate.email, status);
+        await this.notifications.sendFinalDecisionEmail(candidate.id, candidate.email, status);
+
+        await this.logTimelineEvent(candidateId, 'QUALITY_REVIEW_COMPLETED', `Review closed with decision: ${decision}`);
 
         return candidate;
     }
@@ -407,5 +420,48 @@ export class ApplicationsService {
         } catch (error) {
             console.error('[AutoAssign] Error during auto-assignment:', error);
         }
+    }
+
+    // --- NEW TAB METHODS ---
+
+    async logTimelineEvent(candidateId: string, action: string, description: string) {
+        return this.prisma.timelineEvent.create({
+            data: { candidateId, action, description }
+        });
+    }
+
+    async getEmails(id: string) {
+        return this.prisma.emailLog.findMany({
+            where: { candidateId: id },
+            orderBy: { sentAt: 'desc' }
+        });
+    }
+
+    async getTimeline(id: string) {
+        return this.prisma.timelineEvent.findMany({
+            where: { candidateId: id },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
+
+    async getMockInterview(id: string) {
+        return this.prisma.mockInterview.findUnique({
+            where: { candidateId: id }
+        });
+    }
+
+    async scheduleMockInterview(candidateId: string, scheduledAt: string, meetingLink: string) {
+        const interview = await this.prisma.mockInterview.upsert({
+            where: { candidateId },
+            update: { scheduledAt: new Date(scheduledAt), meetingLink, status: 'SCHEDULED' },
+            create: { candidateId, scheduledAt: new Date(scheduledAt), meetingLink, status: 'SCHEDULED' }
+        });
+
+        await this.logTimelineEvent(
+            candidateId, 
+            'INTERVIEW_SCHEDULED', 
+            `Mock interview scheduled for ${new Date(scheduledAt).toLocaleString()}`
+        );
+        return interview;
     }
 }

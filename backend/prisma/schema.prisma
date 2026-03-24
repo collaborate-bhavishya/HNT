@@ -63,6 +63,9 @@ model Candidate {
   pin               String?
   assessments       Assessment[]
   hiringManager     HiringManager? @relation(fields: [hiringManagerId], references: [id])
+  emailLogs         EmailLog[]
+  timelineEvents    TimelineEvent[]
+  mockInterview     MockInterview?
   
   // Quality Review Fields
   qualityReviewLink   String?
@@ -124,4 +127,33 @@ model SubjectDashboardConfig {
   trainingNodes     Json?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+model EmailLog {
+  id          String    @id @default(uuid())
+  candidateId String
+  subject     String
+  body        String    @db.Text
+  sentAt      DateTime  @default(now())
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+}
+
+model TimelineEvent {
+  id          String    @id @default(uuid())
+  candidateId String
+  action      String
+  description String
+  createdAt   DateTime  @default(now())
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+}
+
+model MockInterview {
+  id            String    @id @default(uuid())
+  candidateId   String    @unique
+  scheduledAt   DateTime
+  meetingLink   String
+  status        String    @default("SCHEDULED")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  candidate     Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 }
