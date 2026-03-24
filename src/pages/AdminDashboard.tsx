@@ -148,7 +148,7 @@ export default function AdminDashboard() {
     const [candidateEmails, setCandidateEmails] = useState<any[]>([]);
     const [candidateTimeline, setCandidateTimeline] = useState<any[]>([]);
     const [candidateMockInterview, setCandidateMockInterview] = useState<any>(null);
-    const [isSubTabLoading, setIsSubTabLoading] = useState(false);
+    const [, setIsSubTabLoading] = useState(false);
     const [mockInterviewDate, setMockInterviewDate] = useState('');
     const [mockInterviewTime, setMockInterviewTime] = useState('');
     const [mockInterviewLinkInput, setMockInterviewLinkInput] = useState('');
