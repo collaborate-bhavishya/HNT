@@ -270,6 +270,26 @@ export default function AdminDashboard() {
         } catch {}
     };
 
+    const assignQuality = async (candidateId: string, qualityId: string | null) => {
+        try {
+            const res = await fetch(`${API_BASE}/api/applications/${candidateId}/assign-quality`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ qualityId }),
+            });
+            if (res.ok) {
+                const updated = await res.json();
+                setCandidates(prev => prev.map(c => c.id === candidateId ? { ...c, qualityTeamId: updated.qualityTeamId, qualityTeam: updated.qualityTeam } : c));
+                if (selectedCandidate?.id === candidateId) {
+                    setSelectedCandidate(prev => prev ? { ...prev, qualityTeamId: updated.qualityTeamId, qualityTeam: updated.qualityTeam } : prev);
+                }
+            }
+        } catch {}
+    };
+
     const createOrUpdateHm = async () => {
         setHmMsg(null);
         try {
@@ -1504,6 +1524,19 @@ export default function AdminDashboard() {
                                                             >
                                                                 <option value="">Unassigned</option>
                                                                 {activeManagers.map(m => (
+                                                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-1 block">Quality Team</label>
+                                                            <select
+                                                                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
+                                                                value={selectedCandidate.qualityTeamId || ''}
+                                                                onChange={e => assignQuality(selectedCandidate.id, e.target.value || null)}
+                                                            >
+                                                                <option value="">Unassigned</option>
+                                                                {qualityMembers.map(m => (
                                                                     <option key={m.id} value={m.id}>{m.name}</option>
                                                                 ))}
                                                             </select>

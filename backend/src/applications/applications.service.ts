@@ -196,6 +196,7 @@ export class ApplicationsService {
             where,
             include: {
                 hiringManager: { select: { id: true, name: true } },
+                qualityTeam: { select: { id: true, name: true } },
                 assessments: {
                     select: { reminderCount: true, lastReminderAt: true, startedAt: true, expiresAt: true },
                     orderBy: { createdAt: 'desc' },
@@ -227,6 +228,7 @@ export class ApplicationsService {
             where: { id },
             include: {
                 hiringManager: { select: { id: true, name: true } },
+                qualityTeam: { select: { id: true, name: true } },
                 assessments: {
                     select: {
                         id: true,
@@ -295,6 +297,16 @@ export class ApplicationsService {
             include: { hiringManager: { select: { id: true, name: true } } },
         });
         await this.logTimelineEvent(candidateId, 'MANAGER_ASSIGNED', `Assigned to ${result.hiringManager?.name || 'None'}`);
+        return result;
+    }
+
+    async assignQualityTeam(candidateId: string, qualityTeamId: string | null) {
+        const result = await this.prisma.candidate.update({
+            where: { id: candidateId },
+            data: { qualityTeamId },
+            include: { qualityTeam: { select: { id: true, name: true } } },
+        });
+        await this.logTimelineEvent(candidateId, 'QUALITY_ASSIGNED', `Quality Team: ${result.qualityTeam?.name || 'None'}`);
         return result;
     }
 
@@ -484,6 +496,14 @@ export class ApplicationsService {
             'INTERVIEW_SCHEDULED', 
             `Mock interview scheduled for ${new Date(scheduledAt).toLocaleString()}`
         );
+
+        // Auto-assign quality team member if meeting link is provided
+        if (meetingLink) {
+            const tempCand = await this.prisma.candidate.findUnique({ where: { id: candidateId } });
+            if (tempCand) {
+                await this.autoAssignQualityTeam(candidateId, tempCand.position);
+            }
+        }
 
         const candidate = await this.prisma.candidate.findUnique({
             where: { id: candidateId },

@@ -60,6 +60,15 @@ export class ApplicationsController {
         return this.applicationsService.assignHiringManager(id, hiringManagerId);
     }
 
+    @Post(':id/assign-quality')
+    @UseGuards(AuthGuard('jwt'))
+    async assignQualityTeam(
+        @Param('id') id: string,
+        @Body('qualityId') qualityId: string | null,
+    ) {
+        return this.applicationsService.assignQualityTeam(id, qualityId);
+    }
+
     @Post(':id/position')
     @UseGuards(AuthGuard('jwt'))
     async updatePosition(
