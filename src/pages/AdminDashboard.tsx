@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
-import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail, LayoutDashboard, ShieldCheck, Home, Users, Video, ExternalLink, Star } from 'lucide-react';
+import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail, LayoutDashboard, ShieldCheck, Home, Users, Video, ExternalLink, Star, Loader2 } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 import { CandidateDashboardConfigView } from '../components/CandidateDashboardConfigView';
 
@@ -154,7 +154,10 @@ export default function AdminDashboard() {
     const [candidateEmails, setCandidateEmails] = useState<any[]>([]);
     const [candidateTimeline, setCandidateTimeline] = useState<any[]>([]);
     const [candidateMockInterview, setCandidateMockInterview] = useState<any>(null);
-    const [, setIsSubTabLoading] = useState(false);
+    const [mockInterviewTabLoading, setMockInterviewTabLoading] = useState(false);
+    const [mockInterviewScheduleSaving, setMockInterviewScheduleSaving] = useState(false);
+    const [qualityReviewLinkSubmitting, setQualityReviewLinkSubmitting] = useState(false);
+    const [qualityFinalizeLoading, setQualityFinalizeLoading] = useState<null | 'pass' | 'reject'>(null);
     const [mockInterviewDate, setMockInterviewDate] = useState('');
     const [mockInterviewTime, setMockInterviewTime] = useState('');
     const [mockInterviewLinkInput, setMockInterviewLinkInput] = useState('');
@@ -164,7 +167,8 @@ export default function AdminDashboard() {
         if (!selectedCandidate?.id) return;
         const fetchTabData = async () => {
             if (activeDetailTab === 'ASSESSMENT') return;
-            setIsSubTabLoading(true);
+            const isMockTab = activeDetailTab === 'MOCK_INTERVIEW';
+            if (isMockTab) setMockInterviewTabLoading(true);
             try {
                 if (activeDetailTab === 'EMAILS') {
                     const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/emails`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -172,7 +176,7 @@ export default function AdminDashboard() {
                 } else if (activeDetailTab === 'TIMELINE') {
                     const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/timeline`, { headers: { 'Authorization': `Bearer ${token}` } });
                     if (res.ok) setCandidateTimeline(await res.json());
-                } else if (activeDetailTab === 'MOCK_INTERVIEW') {
+                } else if (isMockTab) {
                     const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/mock-interview`, { headers: { 'Authorization': `Bearer ${token}` } });
                     if (res.ok) {
                         const data = await res.json();
@@ -188,7 +192,7 @@ export default function AdminDashboard() {
             } catch (err) {
                 console.error(err);
             } finally {
-                setIsSubTabLoading(false);
+                if (isMockTab) setMockInterviewTabLoading(false);
             }
         };
         fetchTabData();
@@ -1841,8 +1845,14 @@ export default function AdminDashboard() {
 
                                         {userRole !== 'QUALITY_TEAM' && activeDetailTab === 'MOCK_INTERVIEW' && (
                                             <>
+                                                {mockInterviewTabLoading && (
+                                                    <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
+                                                        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                                                        Loading mock interview…
+                                                    </div>
+                                                )}
                                                 {/* Mock Interview Scheduling */}
-                                                <div className="space-y-4 mb-8">
+                                                <div className={cn('space-y-4 mb-8', mockInterviewTabLoading && 'opacity-50 pointer-events-none')}>
                                                     <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Schedule Mock Interview</h4>
                                                     <div className="bg-gray-50 border border-gray-200 p-5 rounded-xl space-y-4">
                                                         {candidateMockInterview?.status === 'SCHEDULED' && (
@@ -1853,33 +1863,55 @@ export default function AdminDashboard() {
                                                         <div className="grid grid-cols-2 gap-4">
                                                             <div className="space-y-2">
                                                                 <label className="text-xs font-bold text-gray-600">Date</label>
-                                                                <Input type="date" value={mockInterviewDate} onChange={e => setMockInterviewDate(e.target.value)} />
+                                                                <Input type="date" value={mockInterviewDate} onChange={e => setMockInterviewDate(e.target.value)} disabled={mockInterviewTabLoading || mockInterviewScheduleSaving} />
                                                             </div>
                                                             <div className="space-y-2">
                                                                 <label className="text-xs font-bold text-gray-600">Time</label>
-                                                                <Input type="time" value={mockInterviewTime} onChange={e => setMockInterviewTime(e.target.value)} />
+                                                                <Input type="time" value={mockInterviewTime} onChange={e => setMockInterviewTime(e.target.value)} disabled={mockInterviewTabLoading || mockInterviewScheduleSaving} />
                                                             </div>
                                                         </div>
                                                         <div className="space-y-2">
                                                             <label className="text-xs font-bold text-gray-600">Meeting Link</label>
-                                                            <Input placeholder="https://meet.google.com/..." value={mockInterviewLinkInput} onChange={e => setMockInterviewLinkInput(e.target.value)} />
+                                                            <Input placeholder="https://meet.google.com/..." value={mockInterviewLinkInput} onChange={e => setMockInterviewLinkInput(e.target.value)} disabled={mockInterviewTabLoading || mockInterviewScheduleSaving} />
                                                         </div>
-                                                        <Button 
-                                                            className="w-full bg-primary-600 hover:bg-primary-700 text-white"
+                                                        <Button
+                                                            size="sm"
+                                                            className="bg-primary-600 hover:bg-primary-700 text-white w-full sm:w-auto"
+                                                            disabled={mockInterviewTabLoading || mockInterviewScheduleSaving || qualityReviewLinkSubmitting}
                                                             onClick={async () => {
                                                                 if (!mockInterviewDate || !mockInterviewTime || !mockInterviewLinkInput) return alert('Fill all fields');
                                                                 const dt = `${mockInterviewDate}T${mockInterviewTime}`;
+                                                                setMockInterviewScheduleSaving(true);
                                                                 try {
                                                                     const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/mock-interview`, {
                                                                         method: 'POST',
                                                                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                                                                         body: JSON.stringify({ scheduledAt: dt, meetingLink: mockInterviewLinkInput })
                                                                     });
-                                                                    if (res.ok) alert('Interview Scheduled!');
-                                                                } catch {}
+                                                                    if (res.ok) {
+                                                                        alert('Interview Scheduled!');
+                                                                        const miRes = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/mock-interview`, { headers: { 'Authorization': `Bearer ${token}` } });
+                                                                        if (miRes.ok) {
+                                                                            const data = await miRes.json();
+                                                                            setCandidateMockInterview(data);
+                                                                            setSelectedCandidate(prev => (prev ? { ...prev, mockInterview: data } : prev));
+                                                                        }
+                                                                    }
+                                                                } catch {
+                                                                    alert('Failed to schedule interview');
+                                                                } finally {
+                                                                    setMockInterviewScheduleSaving(false);
+                                                                }
                                                             }}
                                                         >
-                                                            Save & Schedule
+                                                            {mockInterviewScheduleSaving ? (
+                                                                <>
+                                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                    Scheduling…
+                                                                </>
+                                                            ) : (
+                                                                'Save & Schedule'
+                                                            )}
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -1888,7 +1920,7 @@ export default function AdminDashboard() {
                                             {(isMasterAdmin || userRole === 'HIRING_MANAGER') && (selectedCandidate.status === 'SELECTED' || selectedCandidate.status === 'QUALITY_REVIEW_PENDING') && (
                                                 <div className="space-y-3 pt-4 border-t border-gray-100">
                                                     <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                                        <ShieldCheck className="w-5 h-5 text-orange-600" />
+                                                        <ShieldCheck className="w-4 h-4 text-orange-600" />
                                                         Quality Review Submission
                                                     </h4>
                                                     <div className="bg-orange-50/50 border border-orange-100 p-4 rounded-xl space-y-4 shadow-sm">
@@ -1901,13 +1933,17 @@ export default function AdminDashboard() {
                                                                     const val = e.target.value;
                                                                     setSelectedCandidate({...selectedCandidate, qualityReviewLink: val});
                                                                 }}
-                                                                className="bg-white h-10 border-orange-200 focus:ring-orange-500"
+                                                                className="bg-white h-9 text-sm border-orange-200 focus:ring-orange-500"
+                                                                disabled={qualityReviewLinkSubmitting || mockInterviewScheduleSaving}
                                                             />
                                                         </div>
-                                                        <Button 
-                                                            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold h-10 shadow-md" 
+                                                        <Button
+                                                            size="sm"
+                                                            className="bg-orange-600 hover:bg-orange-700 text-white w-full sm:w-auto"
+                                                            disabled={qualityReviewLinkSubmitting || mockInterviewScheduleSaving || mockInterviewTabLoading}
                                                             onClick={async () => {
                                                                 if (!selectedCandidate.qualityReviewLink) return alert('Please provide a review link');
+                                                                setQualityReviewLinkSubmitting(true);
                                                                 try {
                                                                     const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-submit`, {
                                                                         method: 'POST',
@@ -1920,15 +1956,26 @@ export default function AdminDashboard() {
                                                                     if (res.ok) {
                                                                         alert('Submitted for Quality Review! Status updated.');
                                                                         fetchCandidates();
+                                                                        const detailRes = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                                                                        if (detailRes.ok) setSelectedCandidate(await detailRes.json());
                                                                     } else {
                                                                         alert('Failed to submit link.');
                                                                     }
-                                                                } catch (err) {
+                                                                } catch {
                                                                     alert('Network error');
+                                                                } finally {
+                                                                    setQualityReviewLinkSubmitting(false);
                                                                 }
                                                             }}
                                                         >
-                                                            {selectedCandidate.status === 'QUALITY_REVIEW_PENDING' ? 'Update Link' : 'Submit for Quality Review'}
+                                                            {qualityReviewLinkSubmitting ? (
+                                                                <>
+                                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                    Submitting…
+                                                                </>
+                                                            ) : (
+                                                                selectedCandidate.status === 'QUALITY_REVIEW_PENDING' ? 'Update Link' : 'Submit for Quality Review'
+                                                            )}
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -1958,13 +2005,13 @@ export default function AdminDashboard() {
                                                         </div>
                                                     </div>
                                                     {selectedCandidate.mockInterview?.meetingLink && (
-                                                        <Button 
-                                                            size="lg" 
-                                                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-8 h-14 rounded-2xl shadow-xl hover:shadow-orange-200 transition-all hover:scale-[1.03] active:scale-95 flex items-center gap-3"
+                                                        <Button
+                                                            size="sm"
+                                                            className="bg-orange-600 hover:bg-orange-700 text-white shrink-0"
                                                             onClick={() => window.open(selectedCandidate.mockInterview!.meetingLink, '_blank')}
                                                         >
                                                             Join Interview Now
-                                                            <ExternalLink className="w-5 h-5" />
+                                                            <ExternalLink className="w-3.5 h-3.5" />
                                                         </Button>
                                                     )}
                                                 </div>
@@ -1975,7 +2022,7 @@ export default function AdminDashboard() {
                                                             <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
                                                             <span className="font-bold text-gray-700">Interview Recording Available</span>
                                                         </div>
-                                                        <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 font-bold hover:bg-orange-50 rounded-xl px-4" onClick={() => window.open(selectedCandidate.qualityReviewLink!, '_blank')}>Watch Recording</Button>
+                                                        <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50 shrink-0" onClick={() => window.open(selectedCandidate.qualityReviewLink!, '_blank')}>Watch Recording</Button>
                                                     </div>
                                                 )}
                                             </div>
@@ -2006,18 +2053,20 @@ export default function AdminDashboard() {
                                                                 {[1, 2, 3, 4, 5].map(star => (
                                                                     <button
                                                                         key={star}
+                                                                        type="button"
+                                                                        disabled={!!qualityFinalizeLoading}
                                                                         onClick={() => {
                                                                             const newScores = { ...selectedCandidate.qualityReviewScore, [rubric.id]: star };
                                                                             setSelectedCandidate({...selectedCandidate, qualityReviewScore: newScores});
                                                                         }}
                                                                         className={cn(
-                                                                            "flex-1 h-12 rounded-xl flex items-center justify-center transition-all border-2",
+                                                                            "flex-1 h-9 rounded-lg flex items-center justify-center transition-all border-2 text-xs disabled:opacity-50 disabled:pointer-events-none",
                                                                             (selectedCandidate.qualityReviewScore?.[rubric.id] || 0) >= star 
                                                                                 ? "bg-yellow-400 border-yellow-400 text-white shadow-md scale-105" 
                                                                                 : "bg-gray-50 border-gray-50 text-gray-300 hover:border-yellow-100 hover:bg-yellow-50"
                                                                         )}
                                                                     >
-                                                                        <Star className={cn("w-5 h-5", (selectedCandidate.qualityReviewScore?.[rubric.id] || 0) >= star ? "fill-white" : "")} />
+                                                                        <Star className={cn("w-4 h-4", (selectedCandidate.qualityReviewScore?.[rubric.id] || 0) >= star ? "fill-white" : "")} />
                                                                     </button>
                                                                 ))}
                                                             </div>
@@ -2031,16 +2080,19 @@ export default function AdminDashboard() {
                                                 <label className="text-sm font-bold text-gray-900 uppercase tracking-widest">Final Review Comments</label>
                                                 <textarea
                                                     placeholder="Provide detailed feedback on the candidate's performance..."
-                                                    className="w-full min-h-[160px] rounded-3xl border-gray-200 bg-gray-50 p-6 text-sm focus:ring-primary-500 focus:bg-white shadow-inner transition-all"
+                                                    className="w-full min-h-[120px] rounded-xl border-gray-200 bg-gray-50 p-4 text-sm focus:ring-primary-500 focus:bg-white shadow-inner transition-all disabled:opacity-50"
                                                     value={qualityReviewComment}
                                                     onChange={e => setQualityReviewComment(e.target.value)}
+                                                    disabled={!!qualityFinalizeLoading}
                                                 />
                                             </div>
 
                                             {/* Action Bar */}
-                                            <div className="flex gap-4 z-20">
-                                                <Button 
-                                                    className="flex-1 h-16 bg-green-600 hover:bg-green-700 text-white font-bold text-lg rounded-2xl shadow-xl shadow-green-100 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
+                                            <div className="flex flex-wrap gap-2 z-20">
+                                                <Button
+                                                    size="sm"
+                                                    className="flex-1 min-w-[140px] bg-green-600 hover:bg-green-700 text-white"
+                                                    disabled={!!qualityFinalizeLoading}
                                                     onClick={async () => {
                                                         const scores = selectedCandidate.qualityReviewScore;
                                                         if (!scores || Object.keys(scores).length < 4) {
@@ -2051,6 +2103,7 @@ export default function AdminDashboard() {
                                                             alert('A summary comment is required for selected candidates');
                                                             return;
                                                         }
+                                                        setQualityFinalizeLoading('pass');
                                                         try {
                                                             const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-finalize`, {
                                                                 method: 'POST',
@@ -2067,20 +2120,35 @@ export default function AdminDashboard() {
                                                                 fetchCandidates();
                                                             }
                                                         } catch {}
+                                                        finally {
+                                                            setQualityFinalizeLoading(null);
+                                                        }
                                                     }}
                                                 >
-                                                    <ShieldCheck className="w-6 h-6" />
-                                                    CONFIRM SELECTION (PASS)
+                                                    {qualityFinalizeLoading === 'pass' ? (
+                                                        <>
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                            Processing…
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <ShieldCheck className="w-4 h-4" />
+                                                            Confirm pass
+                                                        </>
+                                                    )}
                                                 </Button>
-                                                <Button 
+                                                <Button
+                                                    size="sm"
                                                     variant="outline"
-                                                    className="flex-1 h-16 border-2 border-red-200 text-red-600 hover:bg-red-50 font-bold text-lg rounded-2xl shadow-sm transition-all hover:scale-[1.02] flex items-center justify-center gap-3"
+                                                    className="flex-1 min-w-[140px] border-red-200 text-red-600 hover:bg-red-50"
+                                                    disabled={!!qualityFinalizeLoading}
                                                     onClick={async () => {
                                                         if (!qualityReviewComment.trim()) {
                                                             alert('Please provide a reason for rejection in the comments section');
                                                             return;
                                                         }
                                                         if (!confirm('Are you sure you want to reject this candidate? This action is final.')) return;
+                                                        setQualityFinalizeLoading('reject');
                                                         try {
                                                             const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-finalize`, {
                                                                 method: 'POST',
@@ -2097,10 +2165,22 @@ export default function AdminDashboard() {
                                                                 fetchCandidates();
                                                             }
                                                         } catch {}
+                                                        finally {
+                                                            setQualityFinalizeLoading(null);
+                                                        }
                                                     }}
                                                 >
-                                                    <XCircle className="w-6 h-6" />
-                                                    REJECT CANDIDATE
+                                                    {qualityFinalizeLoading === 'reject' ? (
+                                                        <>
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                            Processing…
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <XCircle className="w-4 h-4" />
+                                                            Reject candidate
+                                                        </>
+                                                    )}
                                                 </Button>
                                             </div>
                                         </div>
