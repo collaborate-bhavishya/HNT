@@ -229,6 +229,7 @@ export class ApplicationsService {
             include: {
                 hiringManager: { select: { id: true, name: true } },
                 qualityTeam: { select: { id: true, name: true } },
+                mockInterview: true,
                 assessments: {
                     select: {
                         id: true,

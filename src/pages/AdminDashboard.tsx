@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/utils';
-import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail, LayoutDashboard, ShieldCheck, Home, Users } from 'lucide-react';
+import { Search, User, XCircle, RefreshCw, AlertCircle, FileUp, Database, Trash2, CheckCircle2, Clock, Mail, LayoutDashboard, ShieldCheck, Home, Users, Video, ExternalLink, Star } from 'lucide-react';
 import { Input } from '../components/ui/Input';
 import { CandidateDashboardConfigView } from '../components/CandidateDashboardConfigView';
 
@@ -41,6 +41,11 @@ interface Candidate {
     qualityReviewScore?: any | null;
     qualityReviewResult?: string | null;
     qualityTeamId?: string | null;
+    mockInterview?: {
+        scheduledAt: string;
+        meetingLink: string;
+        status: string;
+    } | null;
 }
 
 interface McqQuestion {
@@ -153,6 +158,7 @@ export default function AdminDashboard() {
     const [mockInterviewDate, setMockInterviewDate] = useState('');
     const [mockInterviewTime, setMockInterviewTime] = useState('');
     const [mockInterviewLinkInput, setMockInterviewLinkInput] = useState('');
+    const [qualityReviewComment, setQualityReviewComment] = useState('');
 
     useEffect(() => {
         if (!selectedCandidate?.id) return;
@@ -944,7 +950,7 @@ export default function AdminDashboard() {
                                                                 const count = a.reminderCount || 0;
                                                                 return count > 0 ? (
                                                                     <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-medium">
-                                                                        <Mail className="w-3 h-3" /> {count}x · {toIST(a.lastReminderAt!, true)}
+                                                                        <Mail className="w-3 h-3" /> {count}x{a.lastReminderAt ? ` · ${toIST(a.lastReminderAt, true)}` : ''}
                                                                     </span>
                                                                 ) : (
                                                                     <span className="text-gray-300">No reminder</span>
@@ -957,7 +963,7 @@ export default function AdminDashboard() {
                                             })}
                                             {filteredCandidates.length === 0 && (
                                                 <tr>
-                                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                                    <td colSpan={isMasterAdmin ? 7 : 6} className="px-6 py-12 text-center text-gray-500">
                                                         No candidates found.
                                                     </td>
                                                 </tr>
@@ -1559,20 +1565,26 @@ export default function AdminDashboard() {
                                         </Button>
 
                                         <div className="px-8 pt-6 border-b border-gray-200 flex gap-6">
-                                            {[
-                                                { id: 'ASSESSMENT', label: 'Assessment' },
-                                                { id: 'MOCK_INTERVIEW', label: 'Mock Interview' },
-                                                { id: 'EMAILS', label: 'Emails' },
-                                                { id: 'TIMELINE', label: 'Timeline' }
-                                            ].map(tab => (
-                                                <button
-                                                    key={tab.id}
-                                                    className={cn("pb-3 text-sm font-bold border-b-2 transition-colors", activeDetailTab === tab.id ? "border-primary-600 text-primary-600" : "border-transparent text-gray-500 hover:text-gray-700")}
-                                                    onClick={() => setActiveDetailTab(tab.id as any)}
-                                                >
-                                                    {tab.label}
-                                                </button>
-                                            ))}
+                                            {userRole !== 'QUALITY_TEAM' ? (
+                                                [
+                                                    { id: 'ASSESSMENT', label: 'Assessment' },
+                                                    { id: 'MOCK_INTERVIEW', label: 'Mock Interview' },
+                                                    { id: 'EMAILS', label: 'Emails' },
+                                                    { id: 'TIMELINE', label: 'Timeline' }
+                                                ].map(tab => (
+                                                    <button
+                                                        key={tab.id}
+                                                        className={cn("pb-3 text-sm font-bold border-b-2 transition-colors", activeDetailTab === tab.id ? "border-primary-600 text-primary-600" : "border-transparent text-gray-500 hover:text-gray-700")}
+                                                        onClick={() => setActiveDetailTab(tab.id as any)}
+                                                    >
+                                                        {tab.label}
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="pb-3 text-sm font-bold border-b-2 border-primary-600 text-primary-600 uppercase tracking-widest">
+                                                    Quality Performance Assessment
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex-1 overflow-y-auto relative p-8 max-w-4xl space-y-8">
@@ -1827,207 +1839,274 @@ export default function AdminDashboard() {
                                      </>
                                 )}
 
-                                {activeDetailTab === 'MOCK_INTERVIEW' && (
-                                    <>
-                                        {/* Mock Interview Scheduling */}
-                                        <div className="space-y-4 mb-8">
-                                            <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Schedule Mock Interview</h4>
-                                            <div className="bg-gray-50 border border-gray-200 p-5 rounded-xl space-y-4">
-                                                {candidateMockInterview?.status === 'SCHEDULED' && (
-                                                    <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-md text-sm mb-4">
-                                                        <strong>Interview Scheduled</strong> for {new Date(candidateMockInterview.scheduledAt).toLocaleString()}
-                                                    </div>
-                                                )}
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div className="space-y-2">
-                                                        <label className="text-xs font-bold text-gray-600">Date</label>
-                                                        <Input type="date" value={mockInterviewDate} onChange={e => setMockInterviewDate(e.target.value)} />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <label className="text-xs font-bold text-gray-600">Time</label>
-                                                        <Input type="time" value={mockInterviewTime} onChange={e => setMockInterviewTime(e.target.value)} />
+                                        {userRole !== 'QUALITY_TEAM' && activeDetailTab === 'MOCK_INTERVIEW' && (
+                                            <>
+                                                {/* Mock Interview Scheduling */}
+                                                <div className="space-y-4 mb-8">
+                                                    <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Schedule Mock Interview</h4>
+                                                    <div className="bg-gray-50 border border-gray-200 p-5 rounded-xl space-y-4">
+                                                        {candidateMockInterview?.status === 'SCHEDULED' && (
+                                                            <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-md text-sm mb-4">
+                                                                <strong>Interview Scheduled</strong> for {new Date(candidateMockInterview.scheduledAt).toLocaleString()}
+                                                            </div>
+                                                        )}
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div className="space-y-2">
+                                                                <label className="text-xs font-bold text-gray-600">Date</label>
+                                                                <Input type="date" value={mockInterviewDate} onChange={e => setMockInterviewDate(e.target.value)} />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-xs font-bold text-gray-600">Time</label>
+                                                                <Input type="time" value={mockInterviewTime} onChange={e => setMockInterviewTime(e.target.value)} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs font-bold text-gray-600">Meeting Link</label>
+                                                            <Input placeholder="https://meet.google.com/..." value={mockInterviewLinkInput} onChange={e => setMockInterviewLinkInput(e.target.value)} />
+                                                        </div>
+                                                        <Button 
+                                                            className="w-full bg-primary-600 hover:bg-primary-700 text-white"
+                                                            onClick={async () => {
+                                                                if (!mockInterviewDate || !mockInterviewTime || !mockInterviewLinkInput) return alert('Fill all fields');
+                                                                const dt = `${mockInterviewDate}T${mockInterviewTime}`;
+                                                                try {
+                                                                    const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/mock-interview`, {
+                                                                        method: 'POST',
+                                                                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                        body: JSON.stringify({ scheduledAt: dt, meetingLink: mockInterviewLinkInput })
+                                                                    });
+                                                                    if (res.ok) alert('Interview Scheduled!');
+                                                                } catch {}
+                                                            }}
+                                                        >
+                                                            Save & Schedule
+                                                        </Button>
                                                     </div>
                                                 </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-gray-600">Meeting Link</label>
-                                                    <Input placeholder="https://meet.google.com/..." value={mockInterviewLinkInput} onChange={e => setMockInterviewLinkInput(e.target.value)} />
-                                                </div>
-                                                <Button 
-                                                    className="w-full bg-primary-600 hover:bg-primary-700 text-white"
-                                                    onClick={async () => {
-                                                        if (!mockInterviewDate || !mockInterviewTime || !mockInterviewLinkInput) return alert('Fill all fields');
-                                                        const dt = `${mockInterviewDate}T${mockInterviewTime}`;
-                                                        try {
-                                                            const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/mock-interview`, {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                                                body: JSON.stringify({ scheduledAt: dt, meetingLink: mockInterviewLinkInput })
-                                                            });
-                                                            if (res.ok) alert('Interview Scheduled!');
-                                                        } catch {}
-                                                    }}
-                                                >
-                                                    Save & Schedule
-                                                </Button>
-                                            </div>
-                                        </div>
 
-                                    {/* Quality Review Submission (Hiring Manager / Master Admin) */}
-                                    {(isMasterAdmin || userRole === 'HIRING_MANAGER') && (selectedCandidate.status === 'SELECTED' || selectedCandidate.status === 'QUALITY_REVIEW_PENDING') && (
-                                        <div className="space-y-3 pt-4 border-t border-gray-100">
-                                            <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                                <ShieldCheck className="w-5 h-5 text-orange-600" />
-                                                Quality Review Submission
-                                            </h4>
-                                            <div className="bg-orange-50/50 border border-orange-100 p-4 rounded-xl space-y-4 shadow-sm">
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-gray-600">Review/Recording URL</label>
-                                                    <Input 
-                                                        placeholder="Paste link here..." 
-                                                        value={selectedCandidate.qualityReviewLink || ''}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            setSelectedCandidate({...selectedCandidate, qualityReviewLink: val});
-                                                        }}
-                                                        className="bg-white h-10 border-orange-200 focus:ring-orange-500"
-                                                    />
-                                                </div>
-                                                <Button 
-                                                    className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold h-10 shadow-md" 
-                                                    onClick={async () => {
-                                                        if (!selectedCandidate.qualityReviewLink) return alert('Please provide a review link');
-                                                        try {
-                                                            const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-submit`, {
-                                                                method: 'POST',
-                                                                headers: { 
-                                                                    'Content-Type': 'application/json',
-                                                                    'Authorization': `Bearer ${token}`
-                                                                },
-                                                                body: JSON.stringify({ link: selectedCandidate.qualityReviewLink }),
-                                                            });
-                                                            if (res.ok) {
-                                                                alert('Submitted for Quality Review! Status updated.');
-                                                                fetchCandidates();
-                                                            } else {
-                                                                alert('Failed to submit link.');
-                                                            }
-                                                        } catch (err) {
-                                                            alert('Network error');
-                                                        }
-                                                    }}
-                                                >
-                                                    {selectedCandidate.status === 'QUALITY_REVIEW_PENDING' ? 'Update Link' : 'Submit for Quality Review'}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Quality Review Section for Quality Team Role */}
-                                    {userRole === 'QUALITY_TEAM' && (
-                                        <div className="space-y-4 pt-4 border-t border-gray-200">
-                                            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                                <ShieldCheck className="w-5 h-5 text-orange-600" />
-                                                Quality Assessment Rubric
-                                            </h4>
-                                            
-                                            {selectedCandidate.qualityReviewLink && (
-                                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between items-center">
-                                                    <span className="text-xs font-semibold text-blue-800">Review Link:</span>
-                                                    <Button size="sm" variant="ghost" className="text-blue-700 hover:bg-blue-100 h-7" onClick={() => window.open(selectedCandidate.qualityReviewLink!, '_blank')}>Open Review Link</Button>
+                                            {/* Quality Review Submission (Hiring Manager / Master Admin) */}
+                                            {(isMasterAdmin || userRole === 'HIRING_MANAGER') && (selectedCandidate.status === 'SELECTED' || selectedCandidate.status === 'QUALITY_REVIEW_PENDING') && (
+                                                <div className="space-y-3 pt-4 border-t border-gray-100">
+                                                    <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                                        <ShieldCheck className="w-5 h-5 text-orange-600" />
+                                                        Quality Review Submission
+                                                    </h4>
+                                                    <div className="bg-orange-50/50 border border-orange-100 p-4 rounded-xl space-y-4 shadow-sm">
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs font-bold text-gray-600">Review/Recording URL</label>
+                                                            <Input 
+                                                                placeholder="Paste link here..." 
+                                                                value={selectedCandidate.qualityReviewLink || ''}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setSelectedCandidate({...selectedCandidate, qualityReviewLink: val});
+                                                                }}
+                                                                className="bg-white h-10 border-orange-200 focus:ring-orange-500"
+                                                            />
+                                                        </div>
+                                                        <Button 
+                                                            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold h-10 shadow-md" 
+                                                            onClick={async () => {
+                                                                if (!selectedCandidate.qualityReviewLink) return alert('Please provide a review link');
+                                                                try {
+                                                                    const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-submit`, {
+                                                                        method: 'POST',
+                                                                        headers: { 
+                                                                            'Content-Type': 'application/json',
+                                                                            'Authorization': `Bearer ${token}`
+                                                                        },
+                                                                        body: JSON.stringify({ link: selectedCandidate.qualityReviewLink }),
+                                                                    });
+                                                                    if (res.ok) {
+                                                                        alert('Submitted for Quality Review! Status updated.');
+                                                                        fetchCandidates();
+                                                                    } else {
+                                                                        alert('Failed to submit link.');
+                                                                    }
+                                                                } catch (err) {
+                                                                    alert('Network error');
+                                                                }
+                                                            }}
+                                                        >
+                                                            {selectedCandidate.status === 'QUALITY_REVIEW_PENDING' ? 'Update Link' : 'Submit for Quality Review'}
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             )}
 
-                                            <div className="space-y-4">
-                                                {[
-                                                    { id: 'subjectKnowledge', label: 'Subject Knowledge' },
-                                                    { id: 'studentEngagement', label: 'Student Engagement' },
-                                                    { id: 'energyLevel', label: 'Energy Level & Confidence' },
-                                                    { id: 'communication', label: 'Communication Skills' },
-                                                ].map(rubric => (
-                                                    <div key={rubric.id} className="space-y-2">
-                                                        <div className="flex justify-between text-xs font-medium text-gray-700">
-                                                            <span>{rubric.label}</span>
-                                                            <span>{(selectedCandidate.qualityReviewScore?.[rubric.id] || 0)}/5</span>
+                                        </>
+                                    )}
+
+                                    {/* Focused Quality Review View (Quality Team Role Only) */}
+                                    {userRole === 'QUALITY_TEAM' && (
+                                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+                                            {/* Header Card: Mock Interview Link */}
+                                            <div className="bg-orange-50 border border-orange-200 rounded-3xl p-8 space-y-6 shadow-sm">
+                                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                                    <div className="flex items-center gap-5">
+                                                        <div className="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center shadow-inner">
+                                                            <Video className="w-7 h-7 text-orange-600" />
                                                         </div>
-                                                        <div className="flex gap-1 justify-between">
-                                                            {[1, 2, 3, 4, 5].map(val => (
-                                                                <Button 
-                                                                    key={val} 
-                                                                    variant="ghost" 
-                                                                    className={cn(
-                                                                        "flex-1 h-8 text-xs rounded-md border",
-                                                                        (selectedCandidate.qualityReviewScore?.[rubric.id] || 0) === val ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
-                                                                    )}
-                                                                    onClick={() => {
-                                                                        const newScores = { ...selectedCandidate.qualityReviewScore, [rubric.id]: val };
-                                                                        setSelectedCandidate({...selectedCandidate, qualityReviewScore: newScores});
-                                                                    }}
-                                                                >
-                                                                    {val}
-                                                                </Button>
-                                                            ))}
+                                                        <div className="space-y-1">
+                                                            <h4 className="text-lg font-bold text-gray-900">Virtual Mock Interview</h4>
+                                                            <p className="text-sm text-orange-700 font-semibold flex items-center gap-2">
+                                                                <Clock className="w-4 h-4" />
+                                                                {selectedCandidate.mockInterview?.scheduledAt 
+                                                                    ? new Date(selectedCandidate.mockInterview.scheduledAt).toLocaleString([], { dateStyle: 'long', timeStyle: 'short' }) 
+                                                                    : 'Not scheduled yet'}
+                                                            </p>
                                                         </div>
                                                     </div>
-                                                ))}
+                                                    {selectedCandidate.mockInterview?.meetingLink && (
+                                                        <Button 
+                                                            size="lg" 
+                                                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-8 h-14 rounded-2xl shadow-xl hover:shadow-orange-200 transition-all hover:scale-[1.03] active:scale-95 flex items-center gap-3"
+                                                            onClick={() => window.open(selectedCandidate.mockInterview!.meetingLink, '_blank')}
+                                                        >
+                                                            Join Interview Now
+                                                            <ExternalLink className="w-5 h-5" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                                
+                                                {selectedCandidate.qualityReviewLink && (
+                                                    <div className="bg-white/60 p-4 rounded-2xl border border-orange-100 flex justify-between items-center text-sm">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                                                            <span className="font-bold text-gray-700">Interview Recording Available</span>
+                                                        </div>
+                                                        <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 font-bold hover:bg-orange-50 rounded-xl px-4" onClick={() => window.open(selectedCandidate.qualityReviewLink!, '_blank')}>Watch Recording</Button>
+                                                    </div>
+                                                )}
                                             </div>
 
-                                            <div className="pt-4 flex gap-3">
+                                            {/* Rubric Section */}
+                                            <div className="space-y-6">
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="text-sm font-bold text-gray-900 uppercase tracking-widest flex items-center gap-3">
+                                                        <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                                                        Quality Assessment Rubric
+                                                    </h4>
+                                                    <span className="text-xs font-bold text-gray-400">SCORE: 1 TO 5</span>
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {[
+                                                        { id: 'subjectKnowledge', label: 'Subject Knowledge', desc: 'Understanding of core concepts' },
+                                                        { id: 'studentEngagement', label: 'Student Engagement', desc: 'Ability to keep students active' },
+                                                        { id: 'energyLevel', label: 'Energy & Confidence', desc: 'Classroom presence' },
+                                                        { id: 'communication', label: 'Communication', desc: 'Clarity and articulation' },
+                                                    ].map(rubric => (
+                                                        <div key={rubric.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4 hover:border-yellow-200 transition-colors group">
+                                                            <div>
+                                                                <label className="text-sm font-bold text-gray-800 block">{rubric.label}</label>
+                                                                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">{rubric.desc}</p>
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                {[1, 2, 3, 4, 5].map(star => (
+                                                                    <button
+                                                                        key={star}
+                                                                        onClick={() => {
+                                                                            const newScores = { ...selectedCandidate.qualityReviewScore, [rubric.id]: star };
+                                                                            setSelectedCandidate({...selectedCandidate, qualityReviewScore: newScores});
+                                                                        }}
+                                                                        className={cn(
+                                                                            "flex-1 h-12 rounded-xl flex items-center justify-center transition-all border-2",
+                                                                            (selectedCandidate.qualityReviewScore?.[rubric.id] || 0) >= star 
+                                                                                ? "bg-yellow-400 border-yellow-400 text-white shadow-md scale-105" 
+                                                                                : "bg-gray-50 border-gray-50 text-gray-300 hover:border-yellow-100 hover:bg-yellow-50"
+                                                                        )}
+                                                                    >
+                                                                        <Star className={cn("w-5 h-5", (selectedCandidate.qualityReviewScore?.[rubric.id] || 0) >= star ? "fill-white" : "")} />
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Comments Section */}
+                                            <div className="space-y-4">
+                                                <label className="text-sm font-bold text-gray-900 uppercase tracking-widest">Final Review Comments</label>
+                                                <textarea
+                                                    placeholder="Provide detailed feedback on the candidate's performance..."
+                                                    className="w-full min-h-[160px] rounded-3xl border-gray-200 bg-gray-50 p-6 text-sm focus:ring-primary-500 focus:bg-white shadow-inner transition-all"
+                                                    value={qualityReviewComment}
+                                                    onChange={e => setQualityReviewComment(e.target.value)}
+                                                />
+                                            </div>
+
+                                            {/* Action Bar */}
+                                            <div className="flex gap-4 z-20">
                                                 <Button 
-                                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white h-11"
+                                                    className="flex-1 h-16 bg-green-600 hover:bg-green-700 text-white font-bold text-lg rounded-2xl shadow-xl shadow-green-100 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
                                                     onClick={async () => {
                                                         const scores = selectedCandidate.qualityReviewScore;
-                                                        if (!scores || Object.keys(scores).length < 4) return alert('Please rate all rubrics');
+                                                        if (!scores || Object.keys(scores).length < 4) {
+                                                            alert('Please score ALL assessment categories before passing');
+                                                            return;
+                                                        }
+                                                        if (!qualityReviewComment.trim()) {
+                                                            alert('A summary comment is required for selected candidates');
+                                                            return;
+                                                        }
                                                         try {
                                                             const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-finalize`, {
                                                                 method: 'POST',
-                                                                headers: { 
-                                                                    'Content-Type': 'application/json',
-                                                                    'Authorization': `Bearer ${token}`
-                                                                },
-                                                                body: JSON.stringify({ qualityId: userId, scores, decision: 'SELECTED_FOR_TRAINING' }),
+                                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                body: JSON.stringify({ 
+                                                                    qualityId: userId,
+                                                                    scores: { ...scores, comment: qualityReviewComment },
+                                                                    decision: 'SELECTED_FOR_TRAINING'
+                                                                })
                                                             });
                                                             if (res.ok) {
-                                                                alert('Candidate selected for training');
-                                                                fetchCandidates();
+                                                                alert('Candidate successfully passed Quality Review!');
                                                                 setSelectedCandidate(null);
+                                                                fetchCandidates();
                                                             }
-                                                        } catch { alert('Update failed'); }
+                                                        } catch {}
                                                     }}
                                                 >
-                                                    Select for Training
+                                                    <ShieldCheck className="w-6 h-6" />
+                                                    CONFIRM SELECTION (PASS)
                                                 </Button>
                                                 <Button 
-                                                    variant="outline" 
-                                                    className="flex-1 border-red-200 text-red-700 hover:bg-red-50 h-11 border-2"
+                                                    variant="outline"
+                                                    className="flex-1 h-16 border-2 border-red-200 text-red-600 hover:bg-red-50 font-bold text-lg rounded-2xl shadow-sm transition-all hover:scale-[1.02] flex items-center justify-center gap-3"
                                                     onClick={async () => {
-                                                        const scores = selectedCandidate.qualityReviewScore;
-                                                        if (!scores || Object.keys(scores).length < 4) return alert('Please rate all rubrics');
+                                                        if (!qualityReviewComment.trim()) {
+                                                            alert('Please provide a reason for rejection in the comments section');
+                                                            return;
+                                                        }
+                                                        if (!confirm('Are you sure you want to reject this candidate? This action is final.')) return;
                                                         try {
                                                             const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-finalize`, {
                                                                 method: 'POST',
-                                                                headers: { 
-                                                                    'Content-Type': 'application/json',
-                                                                    'Authorization': `Bearer ${token}`
-                                                                },
-                                                                body: JSON.stringify({ qualityId: userId, scores, decision: 'REJECTED_FINAL' }),
+                                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                                                body: JSON.stringify({ 
+                                                                    qualityId: userId,
+                                                                    scores: { ...selectedCandidate.qualityReviewScore, comment: qualityReviewComment },
+                                                                    decision: 'REJECTED'
+                                                                })
                                                             });
                                                             if (res.ok) {
-                                                                alert('Candidate rejected');
-                                                                fetchCandidates();
+                                                                alert('Candidate has been rejected');
                                                                 setSelectedCandidate(null);
+                                                                fetchCandidates();
                                                             }
-                                                        } catch { alert('Update failed'); }
+                                                        } catch {}
                                                     }}
                                                 >
-                                                    Reject Candidate
+                                                    <XCircle className="w-6 h-6" />
+                                                    REJECT CANDIDATE
                                                 </Button>
                                             </div>
                                         </div>
                                     )}
-                                    </>
-                                )}
 
-                                {activeDetailTab === 'EMAILS' && (
+                                {userRole !== 'QUALITY_TEAM' && activeDetailTab === 'EMAILS' && (
                                     <div className="space-y-4">
                                         <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Email History</h4>
                                         {candidateEmails.length === 0 ? (
@@ -2046,7 +2125,7 @@ export default function AdminDashboard() {
                                     </div>
                                 )}
 
-                                {activeDetailTab === 'TIMELINE' && (
+                                {userRole !== 'QUALITY_TEAM' && activeDetailTab === 'TIMELINE' && (
                                     <div className="space-y-4">
                                         <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-6 pl-10 md:pl-0 md:text-center shrink-0">Journey Timeline</h4>
                                         <div className="relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent pt-4">

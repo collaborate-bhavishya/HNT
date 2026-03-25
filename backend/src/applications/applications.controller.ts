@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Param, Query, BadRequestException, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UseInterceptors, UploadedFile, Get, Param, Query, Req, BadRequestException, ForbiddenException, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApplicationsService } from './applications.service';
@@ -7,6 +7,18 @@ import { CreateApplicationDto } from './create-application.dto';
 @Controller('api/applications')
 export class ApplicationsController {
     constructor(private readonly applicationsService: ApplicationsService) { }
+
+    private async assertCandidateAccess(user: any, candidateId: string) {
+        if (user.role === 'MASTER_ADMIN' || user.role === 'admin') return;
+        const candidate = await this.applicationsService.getCandidateById(candidateId);
+        if (!candidate) throw new BadRequestException('Candidate not found');
+        if (user.role === 'HIRING_MANAGER' && candidate.hiringManagerId !== user.managerId) {
+            throw new ForbiddenException('You do not have access to this candidate');
+        }
+        if (user.role === 'QUALITY_TEAM' && candidate.qualityTeamId !== user.qualityId) {
+            throw new ForbiddenException('You do not have access to this candidate');
+        }
+    }
 
     @Post()
     @UseInterceptors(FileInterceptor('cv'))
@@ -23,16 +35,25 @@ export class ApplicationsController {
     @Post(':id/status')
     @UseGuards(AuthGuard('jwt'))
     async updateCandidateStatus(
+        @Req() req: any,
         @Param('id') id: string,
         @Body('status') status: string,
         @Body('comment') comment?: string,
     ) {
+        await this.assertCandidateAccess(req.user, id);
         return this.applicationsService.updateCandidateStatus(id, status, comment);
     }
 
     @Get()
     @UseGuards(AuthGuard('jwt'))
-    async getAllApplications(@Query('managerId') managerId?: string, @Query('qualityId') qualityId?: string) {
+    async getAllApplications(@Req() req: any, @Query('managerId') managerId?: string, @Query('qualityId') qualityId?: string) {
+        const user = req.user;
+        if (user.role === 'HIRING_MANAGER') {
+            return this.applicationsService.getAllCandidates(user.managerId);
+        }
+        if (user.role === 'QUALITY_TEAM') {
+            return this.applicationsService.getAllCandidatesByQualityMember(user.qualityId);
+        }
         if (qualityId) {
             return this.applicationsService.getAllCandidatesByQualityMember(qualityId);
         }
@@ -41,31 +62,41 @@ export class ApplicationsController {
 
     @Get(':id')
     @UseGuards(AuthGuard('jwt'))
-    async getCandidateById(@Param('id') id: string) {
+    async getCandidateById(@Req() req: any, @Param('id') id: string) {
+        await this.assertCandidateAccess(req.user, id);
         return this.applicationsService.getCandidateById(id);
     }
 
     @Post(':id/send-reminder')
     @UseGuards(AuthGuard('jwt'))
-    async sendReminder(@Param('id') id: string) {
+    async sendReminder(@Req() req: any, @Param('id') id: string) {
+        await this.assertCandidateAccess(req.user, id);
         return this.applicationsService.sendAssessmentReminder(id);
     }
 
     @Post(':id/assign')
     @UseGuards(AuthGuard('jwt'))
     async assignHiringManager(
+        @Req() req: any,
         @Param('id') id: string,
         @Body('hiringManagerId') hiringManagerId: string | null,
     ) {
+        if (req.user.role !== 'MASTER_ADMIN' && req.user.role !== 'admin') {
+            throw new ForbiddenException('Only master admin can assign hiring managers');
+        }
         return this.applicationsService.assignHiringManager(id, hiringManagerId);
     }
 
     @Post(':id/assign-quality')
     @UseGuards(AuthGuard('jwt'))
     async assignQualityTeam(
+        @Req() req: any,
         @Param('id') id: string,
         @Body('qualityId') qualityId: string | null,
     ) {
+        if (req.user.role !== 'MASTER_ADMIN' && req.user.role !== 'admin') {
+            throw new ForbiddenException('Only master admin can assign quality team');
+        }
         return this.applicationsService.assignQualityTeam(id, qualityId);
     }
 
