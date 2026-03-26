@@ -814,26 +814,26 @@ export default function AdminDashboard() {
                 <main className="flex-1 overflow-auto p-8 flex gap-8">
                     {/* List View */}
                     {activeTab === 'HOME' ? (
-                        <div className="w-full max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 p-4">
-                            <div className="text-left space-y-2 mb-4">
-                                <h1 className="text-4xl font-black text-gray-900 tracking-tight">Welcome, {userName.split(' ')[0]}!</h1>
-                                <p className="text-lg text-gray-500 font-medium">Select a module to manage your recruitment pipeline and assessment tools.</p>
+                        <div className="w-full max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700 p-4">
+                            <div className="text-left space-y-1.5 mb-2">
+                                <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">Welcome, {userName.split(' ')[0]}!</h1>
+                                <p className="text-sm md:text-base text-gray-500 font-medium">Select a module to manage your recruitment pipeline and assessment tools.</p>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Card 
-                                    className="group p-8 cursor-pointer hover:shadow-2xl transition-all border-0 ring-1 ring-gray-100 hover:ring-primary-500/50 bg-white relative overflow-hidden" 
+                                    className="group p-5 cursor-pointer hover:shadow-xl transition-all border-0 ring-1 ring-gray-100 hover:ring-primary-500/50 bg-white relative overflow-hidden" 
                                     onClick={() => { setActiveTab('CANDIDATES'); setPositionFilter('ALL'); setStatusFilter('ALL'); }}
                                 >
                                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500 opacity-50" />
                                     <div className="flex flex-col h-full relative z-10">
-                                        <div className="p-4 bg-primary-100 text-primary-600 rounded-2xl w-fit mb-6 group-hover:bg-primary-600 group-hover:text-white transition-colors duration-300">
-                                            <User className="w-8 h-8" />
+                                        <div className="p-3 bg-primary-100 text-primary-600 rounded-xl w-fit mb-4 group-hover:bg-primary-600 group-hover:text-white transition-colors duration-300">
+                                            <User className="w-6 h-6" />
                                         </div>
-                                        <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-primary-700 transition-colors">{isMasterAdmin ? 'Candidate Pipeline' : 'My Candidates'}</h3>
-                                        <p className="text-gray-500 text-base leading-relaxed mb-6">Track applications, evaluate CVs, and manage candidates across all hiring verticals.</p>
-                                        <div className="mt-auto flex items-center text-primary-600 font-bold text-sm uppercase tracking-widest gap-2">
-                                            Enter Module <span className="text-xl group-hover:translate-x-2 transition-transform">→</span>
+                                        <h3 className="text-lg font-black text-gray-900 mb-2 group-hover:text-primary-700 transition-colors">{isMasterAdmin ? 'Candidate Pipeline' : 'My Candidates'}</h3>
+                                        <p className="text-gray-500 text-sm leading-relaxed mb-4">Track applications, evaluate CVs, and manage candidates across hiring verticals.</p>
+                                        <div className="mt-auto flex items-center text-primary-600 font-bold text-xs uppercase tracking-widest gap-2">
+                                            Enter Module <span className="text-base group-hover:translate-x-2 transition-transform">→</span>
                                         </div>
                                     </div>
                                 </Card>
@@ -841,52 +841,52 @@ export default function AdminDashboard() {
                                 {isMasterAdmin && (
                                     <>
                                         <Card 
-                                            className="group p-8 cursor-pointer hover:shadow-2xl transition-all border-0 ring-1 ring-gray-100 hover:ring-indigo-500/50 bg-white relative overflow-hidden" 
+                                            className="group p-5 cursor-pointer hover:shadow-xl transition-all border-0 ring-1 ring-gray-100 hover:ring-indigo-500/50 bg-white relative overflow-hidden" 
                                             onClick={() => setActiveTab('QUESTIONS')}
                                         >
                                             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500 opacity-50" />
                                             <div className="flex flex-col h-full relative z-10">
-                                                <div className="p-4 bg-indigo-100 text-indigo-600 rounded-2xl w-fit mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
-                                                    <Database className="w-8 h-8" />
+                                                <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl w-fit mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
+                                                    <Database className="w-6 h-6" />
                                                 </div>
-                                                <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-indigo-700 transition-colors">Question Bank</h3>
-                                                <p className="text-gray-500 text-base leading-relaxed mb-6">Manage the technical assessment pool for both multiple-choice and audio-based interviews.</p>
-                                                <div className="mt-auto flex items-center text-indigo-600 font-bold text-sm uppercase tracking-widest gap-2">
-                                                    Manage Questions <span className="text-xl group-hover:translate-x-2 transition-transform">→</span>
+                                                <h3 className="text-lg font-black text-gray-900 mb-2 group-hover:text-indigo-700 transition-colors">Question Bank</h3>
+                                                <p className="text-gray-500 text-sm leading-relaxed mb-4">Manage the assessment pool for MCQ and audio-based interviews.</p>
+                                                <div className="mt-auto flex items-center text-indigo-600 font-bold text-xs uppercase tracking-widest gap-2">
+                                                    Manage Questions <span className="text-base group-hover:translate-x-2 transition-transform">→</span>
                                                 </div>
                                             </div>
                                         </Card>
 
                                         <Card 
-                                            className="group p-8 cursor-pointer hover:shadow-2xl transition-all border-0 ring-1 ring-gray-100 hover:ring-emerald-500/50 bg-white relative overflow-hidden" 
+                                            className="group p-5 cursor-pointer hover:shadow-xl transition-all border-0 ring-1 ring-gray-100 hover:ring-emerald-500/50 bg-white relative overflow-hidden" 
                                             onClick={() => setActiveTab('DASHBOARD_CONFIG')}
                                         >
                                             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500 opacity-50" />
                                             <div className="flex flex-col h-full relative z-10">
-                                                <div className="p-4 bg-emerald-100 text-emerald-600 rounded-2xl w-fit mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
-                                                    <LayoutDashboard className="w-8 h-8" />
+                                                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl w-fit mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300">
+                                                    <LayoutDashboard className="w-6 h-6" />
                                                 </div>
-                                                <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-emerald-700 transition-colors">Dashboard Config</h3>
-                                                <p className="text-gray-500 text-base leading-relaxed mb-6">Configure subject-specific onboarding steps, preparation links, and training materials.</p>
-                                                <div className="mt-auto flex items-center text-emerald-600 font-bold text-sm uppercase tracking-widest gap-2">
-                                                    Set Parameters <span className="text-xl group-hover:translate-x-2 transition-transform">→</span>
+                                                <h3 className="text-lg font-black text-gray-900 mb-2 group-hover:text-emerald-700 transition-colors">Dashboard Config</h3>
+                                                <p className="text-gray-500 text-sm leading-relaxed mb-4">Configure subject-specific onboarding steps, prep links, and training materials.</p>
+                                                <div className="mt-auto flex items-center text-emerald-600 font-bold text-xs uppercase tracking-widest gap-2">
+                                                    Set Parameters <span className="text-base group-hover:translate-x-2 transition-transform">→</span>
                                                 </div>
                                             </div>
                                         </Card>
 
                                         <Card 
-                                            className="group p-8 cursor-pointer hover:shadow-2xl transition-all border-0 ring-1 ring-gray-100 hover:ring-purple-500/50 bg-white relative overflow-hidden" 
+                                            className="group p-5 cursor-pointer hover:shadow-xl transition-all border-0 ring-1 ring-gray-100 hover:ring-purple-500/50 bg-white relative overflow-hidden" 
                                             onClick={() => { setActiveTab('TEAM'); setTeamTab('HIRING_MANAGERS'); fetchHiringManagers(); fetchQualityMembers(); }}
                                         >
                                             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500 opacity-50" />
                                             <div className="flex flex-col h-full relative z-10">
-                                                <div className="p-4 bg-purple-100 text-purple-600 rounded-2xl w-fit mb-6 group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300">
-                                                    <Users className="w-8 h-8" />
+                                                <div className="p-3 bg-purple-100 text-purple-600 rounded-xl w-fit mb-4 group-hover:bg-purple-600 group-hover:text-white transition-colors duration-300">
+                                                    <Users className="w-6 h-6" />
                                                 </div>
-                                                <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-purple-700 transition-colors">Team Management</h3>
-                                                <p className="text-gray-500 text-base leading-relaxed mb-6">Organize your personnel, manage access levels, and assign subjects for your panels.</p>
-                                                <div className="mt-auto flex items-center text-purple-600 font-bold text-sm uppercase tracking-widest gap-2">
-                                                    Manage Team <span className="text-xl group-hover:translate-x-2 transition-transform">→</span>
+                                                <h3 className="text-lg font-black text-gray-900 mb-2 group-hover:text-purple-700 transition-colors">Team Management</h3>
+                                                <p className="text-gray-500 text-sm leading-relaxed mb-4">Organize panels, manage access, and assign subjects.</p>
+                                                <div className="mt-auto flex items-center text-purple-600 font-bold text-xs uppercase tracking-widest gap-2">
+                                                    Manage Team <span className="text-base group-hover:translate-x-2 transition-transform">→</span>
                                                 </div>
                                             </div>
                                         </Card>
