@@ -1044,6 +1044,7 @@ export default function AdminDashboard() {
                                                 <option value="Science">Science</option>
                                                 <option value="English">English</option>
                                                 <option value="Robotics">Robotics</option>
+                                                <option value="Financial Literacy">Financial Literacy</option>
                                                 <option value="Rubik's Cube">Rubik's Cube</option>
                                                 <option value="Chess">Chess</option>
                                             </select>
@@ -1154,6 +1155,10 @@ export default function AdminDashboard() {
                                                     <option value="Math">Math</option>
                                                     <option value="Science">Science</option>
                                                     <option value="English">English</option>
+                                                    <option value="Robotics">Robotics</option>
+                                                    <option value="Financial Literacy">Financial Literacy</option>
+                                                    <option value="Rubik's Cube">Rubik's Cube</option>
+                                                    <option value="Chess">Chess</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -1406,6 +1411,7 @@ export default function AdminDashboard() {
                                                <option value="Science">Science</option>
                                                <option value="English">English</option>
                                                <option value="Robotics">Robotics</option>
+                                               <option value="Financial Literacy">Financial Literacy</option>
                                            </select>
                                            <textarea
                                                className="w-full text-sm border-gray-300 rounded-lg p-2"
@@ -1538,6 +1544,7 @@ export default function AdminDashboard() {
                                                                 <option value="Science">Science</option>
                                                                 <option value="English">English</option>
                                                                 <option value="Robotics">Robotics</option>
+                                                                <option value="Financial Literacy">Financial Literacy</option>
                                                             </select>
                                                         </div>
                                                         <div>

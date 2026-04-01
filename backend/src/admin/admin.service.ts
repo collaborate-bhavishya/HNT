@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { resolveMockInterviewLink } from '../config/mock-interview-defaults';
 
 @Injectable()
 export class AdminService {
@@ -45,9 +46,13 @@ export class AdminService {
             where: { subject }
         });
         if (!config) {
-            return { subject, mockInterviewLink: '', trainingNodes: [] };
+            const mockInterviewLink = resolveMockInterviewLink(subject, null) || '';
+            return { subject, mockInterviewLink, trainingNodes: [] };
         }
-        return config;
+        return {
+            ...config,
+            mockInterviewLink: resolveMockInterviewLink(subject, config.mockInterviewLink) || '',
+        };
     }
 
     async saveDashboardConfig(data: any) {

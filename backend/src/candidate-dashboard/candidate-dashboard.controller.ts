@@ -1,6 +1,7 @@
 import { Controller, Get, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma.service';
+import { resolveMockInterviewLink } from '../config/mock-interview-defaults';
 
 @Controller('api/candidate/dashboard')
 export class CandidateDashboardController {
@@ -51,7 +52,7 @@ export class CandidateDashboardController {
         finalScore: assessment.finalScore,
         completedAt: assessment.completedAt,
       } : null,
-      mockInterviewLink: config?.mockInterviewLink || null,
+      mockInterviewLink: resolveMockInterviewLink(candidate.position, config?.mockInterviewLink),
       mockInterviewDate: candidate.mockInterview?.scheduledAt || null,
       trainingSteps: config?.trainingNodes || null,
       timelineSteps: [
