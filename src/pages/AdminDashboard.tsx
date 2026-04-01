@@ -142,7 +142,7 @@ export default function AdminDashboard() {
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const [positionFilter, setPositionFilter] = useState<string>('ALL');
-    const [activeTab, setActiveTab] = useState<'HOME' | 'CANDIDATES' | 'QUESTIONS' | 'TEAM' | 'HIRING_MANAGERS' | 'DASHBOARD_CONFIG' | 'QUALITY_TEAM'>('HOME');
+    const [activeTab, setActiveTab] = useState<'HOME' | 'CANDIDATES' | 'QUESTIONS' | 'TEAM' | 'HIRING_MANAGERS' | 'DASHBOARD_CONFIG' | 'QUALITY_TEAM' | 'QUALITY_CUTOFF'>('HOME');
     const [teamTab, setTeamTab] = useState<'HIRING_MANAGERS' | 'QUALITY_TEAM'>('HIRING_MANAGERS');
     const [activeDetailTab, setActiveDetailTab] = useState<'ASSESSMENT' | 'MOCK_INTERVIEW' | 'EMAILS' | 'TIMELINE'>('ASSESSMENT');
 
@@ -177,6 +177,24 @@ export default function AdminDashboard() {
     const [mockInterviewTime, setMockInterviewTime] = useState('');
     const [mockInterviewLinkInput, setMockInterviewLinkInput] = useState('');
     const [qualityReviewComment, setQualityReviewComment] = useState('');
+    const [mockInterviewRejectReason, setMockInterviewRejectReason] = useState<'not_connect' | 'not_interested' | 'other' | ''>('');
+    const [mockInterviewRejectComment, setMockInterviewRejectComment] = useState('');
+    const [mockInterviewRejectLoading, setMockInterviewRejectLoading] = useState(false);
+    const [qtViewFilter, setQtViewFilter] = useState<'PENDING' | 'COMPLETED'>('PENDING');
+
+    const [cutoffAuthenticated, setCutoffAuthenticated] = useState(false);
+    const [cutoffPasswordInput, setCutoffPasswordInput] = useState('');
+    const [cutoffPasswordError, setCutoffPasswordError] = useState('');
+    const [cutoffSubject, setCutoffSubject] = useState('Coding');
+    const [cutoffScores, setCutoffScores] = useState<Record<string, number>>({ subjectKnowledge: 5, studentEngagement: 5, energyLevel: 5, communication: 5 });
+    const [cutoffLoading, setCutoffLoading] = useState(false);
+    const [cutoffSaving, setCutoffSaving] = useState(false);
+    const CUTOFF_PASSWORD = 'cutoff@2026';
+
+    useEffect(() => {
+        setMockInterviewRejectReason('');
+        setMockInterviewRejectComment('');
+    }, [selectedCandidate?.id]);
 
     useEffect(() => {
         if (!selectedCandidate?.id) return;
@@ -384,7 +402,7 @@ export default function AdminDashboard() {
         }
     };
 
-    const updateStatus = async (id: string, newStatus: string, comment?: string) => {
+    const updateStatus = async (id: string, newStatus: string, comment?: string): Promise<boolean> => {
         try {
             const res = await fetch(`${API_BASE}/api/applications/${id}/status`, {
                 method: 'POST',
@@ -395,15 +413,81 @@ export default function AdminDashboard() {
                 body: JSON.stringify({ status: newStatus, comment })
             });
             if (res.ok) {
-                setCandidates(candidates.map(c => c.id === id ? { ...c, status: newStatus as CandidateStatus } : c));
+                setCandidates(candidates.map(c => c.id === id ? { ...c, status: newStatus as CandidateStatus, ...(comment ? { rejectionReason: comment } : {}) } : c));
                 if (selectedCandidate?.id === id) {
-                    setSelectedCandidate({ ...selectedCandidate, status: newStatus as CandidateStatus });
+                    setSelectedCandidate({
+                        ...selectedCandidate,
+                        status: newStatus as CandidateStatus,
+                        ...(comment ? { rejectionReason: comment } : {}),
+                    });
                 }
                 setRejectionComment('');
+                return true;
             }
+            return false;
         } catch (err) {
             console.error('Failed to update status', err);
+            return false;
         }
+    };
+
+    const buildMockInterviewRejectionNote = (reason: 'not_connect' | 'not_interested' | 'other', extra: string) => {
+        const labels: Record<typeof reason, string> = {
+            not_connect: 'Not able to connect',
+            not_interested: 'Not Interested',
+            other: 'Other',
+        };
+        const base = `[Mock interview] ${labels[reason]}`;
+        const t = extra.trim();
+        return t ? `${base} — ${t}` : base;
+    };
+
+    const handleMockInterviewReject = async () => {
+        if (!selectedCandidate?.id || !mockInterviewRejectReason) return;
+        const note = buildMockInterviewRejectionNote(mockInterviewRejectReason, mockInterviewRejectComment);
+        setMockInterviewRejectLoading(true);
+        try {
+            const ok = await updateStatus(selectedCandidate.id, 'REJECTED_FINAL', note);
+            if (ok) {
+                setMockInterviewRejectReason('');
+                setMockInterviewRejectComment('');
+                fetchCandidates();
+            } else {
+                alert('Failed to reject candidate. Please try again.');
+            }
+        } finally {
+            setMockInterviewRejectLoading(false);
+        }
+    };
+
+    const loadCutoffConfig = async (subj: string) => {
+        setCutoffLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/admin/dashboard-config/${subj}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const data = await res.json();
+                const c = data.qualityCutoffScores || {};
+                setCutoffScores({
+                    subjectKnowledge: c.subjectKnowledge ?? 5,
+                    studentEngagement: c.studentEngagement ?? 5,
+                    energyLevel: c.energyLevel ?? 5,
+                    communication: c.communication ?? 5,
+                });
+            }
+        } catch { /* ignore */ } finally { setCutoffLoading(false); }
+    };
+
+    const saveCutoffConfig = async () => {
+        setCutoffSaving(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/admin/dashboard-config`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ subject: cutoffSubject, qualityCutoffScores: cutoffScores }),
+            });
+            if (res.ok) alert(`Cutoff scores saved for ${cutoffSubject}`);
+            else alert('Failed to save');
+        } catch { alert('Network error'); } finally { setCutoffSaving(false); }
     };
 
     const sendReminder = async (id: string) => {
@@ -540,11 +624,20 @@ export default function AdminDashboard() {
         return acc;
     }, {} as Record<string, number>);
 
+    const isQtReviewCompleted = (c: Candidate) => !!c.qualityReviewResult;
+    const isQtReviewPending = (c: Candidate) => c.status === 'QUALITY_REVIEW_PENDING' && !c.qualityReviewResult;
+
     const filteredCandidates = candidates.filter(c => {
         const matchesSearch =
             `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
             c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
             c.position.toLowerCase().includes(searchTerm.toLowerCase());
+
+        if (userRole === 'QUALITY_TEAM') {
+            if (qtViewFilter === 'PENDING') return matchesSearch && isQtReviewPending(c);
+            return matchesSearch && isQtReviewCompleted(c);
+        }
+
         const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
         const matchesPosition = positionFilter === 'ALL' || c.position === positionFilter;
         return matchesSearch && matchesStatus && matchesPosition;
@@ -560,6 +653,13 @@ export default function AdminDashboard() {
 
     const isRejected = (status: string) => ['REJECTED', 'REJECTED_FORM', 'REJECTED_FINAL'].includes(status);
     const isSuccess = (status: string) => ['SELECTED'].includes(status);
+
+    const getRejectionStage = (c: Candidate): string | null => {
+        if (c.status !== 'REJECTED_FINAL') return null;
+        if (c.qualityReviewResult === 'REJECTED') return 'Quality Review';
+        if (c.rejectionReason?.trimStart().startsWith('[Mock interview]')) return 'Mock Interview';
+        return 'Manual Review';
+    };
 
     const handleAdminLogin = async () => {
         setLoginLoading(true);
@@ -656,7 +756,7 @@ export default function AdminDashboard() {
             <div className="w-64 bg-white border-r hidden md:flex flex-col">
                 <div className="p-6 border-b">
                     <h1 className="text-xl font-bold text-gray-900">EdTech Admin</h1>
-                    <p className="text-xs text-gray-500 mt-1">{userName} · {userRole === 'MASTER_ADMIN' ? 'Master Admin' : 'Hiring Manager'}</p>
+                    <p className="text-xs text-gray-500 mt-1">{userName} · {userRole === 'MASTER_ADMIN' ? 'Master Admin' : userRole === 'QUALITY_TEAM' ? 'Quality Team' : 'Hiring Manager'}</p>
                 </div>
                 <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
                     <Button
@@ -671,7 +771,31 @@ export default function AdminDashboard() {
                     <div className="h-4" />
 
                     {/* Section: Candidates */}
-                    {activeTab === 'CANDIDATES' && (
+                    {activeTab === 'CANDIDATES' && userRole === 'QUALITY_TEAM' && (
+                        <>
+                            <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Quality Review</div>
+                            <Button
+                                variant="ghost"
+                                className={cn("w-full justify-start gap-3 transition-colors", qtViewFilter === 'PENDING' ? "bg-primary-50 text-primary-700 font-semibold" : "text-gray-600 hover:bg-gray-100")}
+                                onClick={() => setQtViewFilter('PENDING')}
+                            >
+                                <ShieldCheck className="w-5 h-5" />
+                                Pending Review
+                                <span className="ml-auto text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{candidates.filter(isQtReviewPending).length}</span>
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                className={cn("w-full justify-start gap-3 transition-colors", qtViewFilter === 'COMPLETED' ? "bg-primary-50 text-primary-700 font-semibold" : "text-gray-600 hover:bg-gray-100")}
+                                onClick={() => setQtViewFilter('COMPLETED')}
+                            >
+                                <CheckCircle2 className="w-5 h-5" />
+                                Completed
+                                <span className="ml-auto text-xs bg-gray-100 px-2 py-0.5 rounded-full">{candidates.filter(isQtReviewCompleted).length}</span>
+                            </Button>
+                        </>
+                    )}
+
+                    {activeTab === 'CANDIDATES' && userRole !== 'QUALITY_TEAM' && (
                         <>
                             <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Recruitment</div>
                             <Button
@@ -770,6 +894,20 @@ export default function AdminDashboard() {
                         </>
                     )}
 
+                    {/* Section: Quality Cutoff */}
+                    {isMasterAdmin && activeTab === 'QUALITY_CUTOFF' && (
+                        <>
+                            <div className="px-3 pb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Quality Review</div>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start gap-3 transition-colors bg-primary-50 text-primary-700 font-semibold"
+                            >
+                                <ShieldCheck className="w-5 h-5" />
+                                Cutoff Scores
+                            </Button>
+                        </>
+                    )}
+
                     {/* Section: Team Management */}
                     {isMasterAdmin && activeTab === 'TEAM' && (
                         <>
@@ -805,10 +943,10 @@ export default function AdminDashboard() {
                 <header className="bg-white border-b px-8 py-4 flex justify-between items-center text-sans">
                     <div>
                         <h2 className="text-2xl font-semibold text-gray-800">
-                            {activeTab === 'HOME' ? 'Dashboard Overview' : activeTab === 'CANDIDATES' ? 'Candidates' : activeTab === 'TEAM' ? 'Team Management' : activeTab === 'HIRING_MANAGERS' ? 'Hiring Managers' : activeTab === 'DASHBOARD_CONFIG' ? 'Candidate Dashboard Configuration' : 'Question Bank'}
+                            {activeTab === 'HOME' ? 'Dashboard Overview' : activeTab === 'CANDIDATES' ? 'Candidates' : activeTab === 'TEAM' ? 'Team Management' : activeTab === 'HIRING_MANAGERS' ? 'Hiring Managers' : activeTab === 'DASHBOARD_CONFIG' ? 'Candidate Dashboard Configuration' : activeTab === 'QUALITY_CUTOFF' ? 'Quality Review Cutoffs' : 'Question Bank'}
                         </h2>
                         <p className="text-sm text-gray-500">
-                            {activeTab === 'HOME' ? 'Navigate your modules' : activeTab === 'CANDIDATES' ? `${filteredCandidates.length} applicants in view` : activeTab === 'TEAM' ? 'Manage your organization\'s panels' : activeTab === 'HIRING_MANAGERS' ? 'Manage your hiring team' : activeTab === 'DASHBOARD_CONFIG' ? 'Map subject configurations' : 'Manage your technical question pool'}
+                            {activeTab === 'HOME' ? 'Navigate your modules' : activeTab === 'CANDIDATES' ? `${filteredCandidates.length} applicants in view` : activeTab === 'TEAM' ? 'Manage your organization\'s panels' : activeTab === 'HIRING_MANAGERS' ? 'Manage your hiring team' : activeTab === 'DASHBOARD_CONFIG' ? 'Map subject configurations' : activeTab === 'QUALITY_CUTOFF' ? 'Minimum pass scores per rubric per subject' : 'Manage your technical question pool'}
                         </p>
                     </div>
                     {activeTab === 'CANDIDATES' && (
@@ -890,6 +1028,23 @@ export default function AdminDashboard() {
                                         </Card>
 
                                         <Card 
+                                            className="group p-5 cursor-pointer hover:shadow-xl transition-all border-0 ring-1 ring-gray-100 hover:ring-rose-500/50 bg-white relative overflow-hidden" 
+                                            onClick={() => setActiveTab('QUALITY_CUTOFF')}
+                                        >
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500 opacity-50" />
+                                            <div className="flex flex-col h-full relative z-10">
+                                                <div className="p-3 bg-rose-100 text-rose-600 rounded-xl w-fit mb-4 group-hover:bg-rose-600 group-hover:text-white transition-colors duration-300">
+                                                    <ShieldCheck className="w-6 h-6" />
+                                                </div>
+                                                <h3 className="text-lg font-black text-gray-900 mb-2 group-hover:text-rose-700 transition-colors">Quality Cutoff Scores</h3>
+                                                <p className="text-gray-500 text-sm leading-relaxed mb-4">Set minimum pass marks per rubric for the automated quality review decision engine.</p>
+                                                <div className="mt-auto flex items-center text-rose-600 font-bold text-xs uppercase tracking-widest gap-2">
+                                                    Configure <span className="text-base group-hover:translate-x-2 transition-transform">→</span>
+                                                </div>
+                                            </div>
+                                        </Card>
+
+                                        <Card 
                                             className="group p-5 cursor-pointer hover:shadow-xl transition-all border-0 ring-1 ring-gray-100 hover:ring-purple-500/50 bg-white relative overflow-hidden" 
                                             onClick={() => { setActiveTab('TEAM'); setTeamTab('HIRING_MANAGERS'); fetchHiringManagers(); fetchQualityMembers(); }}
                                         >
@@ -954,9 +1109,22 @@ export default function AdminDashboard() {
                                                         <td className="px-6 py-4 text-gray-700">{candidate.position}</td>
                                                         <td className="px-6 py-4 text-gray-700">{candidate.experience}y</td>
                                                         <td className="px-6 py-4">
-                                                            <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", sc.color)}>
-                                                                {sc.label}
-                                                            </span>
+                                                            {userRole === 'QUALITY_TEAM' && isQtReviewCompleted(candidate) ? (
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-gray-100 text-gray-700 border-gray-200">
+                                                                    Review Completed
+                                                                </span>
+                                                            ) : (
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border", sc.color)}>
+                                                                        {sc.label}
+                                                                    </span>
+                                                                    {getRejectionStage(candidate) && (
+                                                                        <span className="text-[10px] text-red-500 font-semibold pl-1">
+                                                                            at {getRejectionStage(candidate)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </td>
                                                         {isMasterAdmin && (
                                                             <td className="px-6 py-4 text-gray-500 text-xs">
@@ -1274,6 +1442,114 @@ export default function AdminDashboard() {
                         </div>
                     ) : activeTab === 'DASHBOARD_CONFIG' && isMasterAdmin ? (
                         <CandidateDashboardConfigView token={token} />
+                    ) : activeTab === 'QUALITY_CUTOFF' && isMasterAdmin ? (
+                        !cutoffAuthenticated ? (
+                            <Card className="flex-1 flex flex-col items-center justify-center bg-white p-8">
+                                <div className="w-full max-w-sm space-y-6 text-center">
+                                    <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
+                                        <ShieldCheck className="w-8 h-8" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-gray-900">Quality Cutoff Configuration</h3>
+                                        <p className="text-sm text-gray-500 mt-2">Enter the access password to manage quality review cutoff scores.</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <Input
+                                            type="password"
+                                            placeholder="Enter password"
+                                            className="text-center h-12 text-lg tracking-widest"
+                                            value={cutoffPasswordInput}
+                                            onChange={e => { setCutoffPasswordInput(e.target.value); setCutoffPasswordError(''); }}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') {
+                                                    if (cutoffPasswordInput === CUTOFF_PASSWORD) {
+                                                        setCutoffAuthenticated(true);
+                                                        setCutoffPasswordInput('');
+                                                        loadCutoffConfig(cutoffSubject);
+                                                    } else {
+                                                        setCutoffPasswordError('Incorrect password');
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        {cutoffPasswordError && <p className="text-red-500 text-sm font-medium">{cutoffPasswordError}</p>}
+                                        <Button
+                                            className="w-full bg-rose-600 hover:bg-rose-700 text-white h-11"
+                                            onClick={() => {
+                                                if (cutoffPasswordInput === CUTOFF_PASSWORD) {
+                                                    setCutoffAuthenticated(true);
+                                                    setCutoffPasswordInput('');
+                                                    loadCutoffConfig(cutoffSubject);
+                                                } else {
+                                                    setCutoffPasswordError('Incorrect password');
+                                                }
+                                            }}
+                                        >
+                                            Unlock
+                                        </Button>
+                                    </div>
+                                </div>
+                            </Card>
+                        ) : (
+                            <Card className="flex-1 overflow-auto bg-white p-8">
+                                <div className="max-w-3xl space-y-8 animate-in fade-in duration-300">
+                                    <div className="flex justify-between items-center bg-gray-50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
+                                                <ShieldCheck className="w-6 h-6" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-xl font-extrabold text-gray-900 tracking-tight">Quality Review — Cutoff Scores</h3>
+                                                <p className="text-sm text-gray-500 font-medium mt-1">Candidates must score at or above these cutoffs (out of 10) on every rubric to be auto-selected.</p>
+                                            </div>
+                                        </div>
+                                        <Button onClick={saveCutoffConfig} disabled={cutoffSaving} className="bg-rose-600 hover:bg-rose-700 shadow-md h-11 px-6">
+                                            {cutoffSaving ? 'Saving…' : 'Save Cutoffs'}
+                                        </Button>
+                                    </div>
+
+                                    <div className="space-y-4 max-w-sm">
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Select Target Subject</label>
+                                        <select
+                                            className="w-full h-12 border-2 border-gray-200 rounded-xl px-4 font-semibold text-gray-800 bg-white hover:border-rose-300 focus:border-rose-500 focus:ring-0 outline-none transition-colors cursor-pointer shadow-sm"
+                                            value={cutoffSubject}
+                                            onChange={e => { setCutoffSubject(e.target.value); loadCutoffConfig(e.target.value); }}
+                                        >
+                                            {["Coding", "Math", "Science", "English", "Robotics", "Financial Literacy"].map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                    </div>
+
+                                    {cutoffLoading ? (
+                                        <div className="flex gap-2 items-center text-rose-600 font-medium p-4 justify-center bg-rose-50 rounded-xl animate-pulse">Loading…</div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                            {[
+                                                { key: 'subjectKnowledge', label: 'Subject Knowledge' },
+                                                { key: 'studentEngagement', label: 'Student Engagement' },
+                                                { key: 'energyLevel', label: 'Energy & Confidence' },
+                                                { key: 'communication', label: 'Communication' },
+                                            ].map(param => (
+                                                <div key={param.key} className="bg-gray-50/50 p-5 rounded-xl border border-gray-100 space-y-3">
+                                                    <label className="text-xs font-bold text-gray-600 uppercase tracking-widest">{param.label}</label>
+                                                    <Input
+                                                        type="number"
+                                                        min={1}
+                                                        max={10}
+                                                        className="h-12 bg-white max-w-[100px] font-bold text-center text-xl"
+                                                        value={cutoffScores[param.key]}
+                                                        onChange={e => {
+                                                            const v = Math.min(10, Math.max(1, parseInt(e.target.value) || 1));
+                                                            setCutoffScores({ ...cutoffScores, [param.key]: v });
+                                                        }}
+                                                    />
+                                                    <p className="text-[10px] text-gray-400">Min score to pass: <strong>{cutoffScores[param.key]}</strong>/10</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </Card>
+                        )
                     ) : activeTab === 'QUESTIONS' && isMasterAdmin ? (
                         !isQuestionBankAuthenticated ? (
                         <Card className="flex-1 flex flex-col items-center justify-center bg-white p-8">
@@ -1952,6 +2228,55 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </div>
 
+                                            {(selectedCandidate.status === 'SELECTED' || selectedCandidate.status === 'QUALITY_REVIEW_PENDING') && (
+                                                <div className={cn('border border-red-200 bg-red-50/50 p-5 rounded-xl space-y-4 mb-8', (mockInterviewTabLoading || mockInterviewScheduleSaving) && 'opacity-50 pointer-events-none')}>
+                                                    <h4 className="text-sm font-semibold text-red-900 uppercase tracking-wider">Admin actions</h4>
+                                                    <p className="text-xs text-gray-600 leading-relaxed">Reject the candidate from the mock interview stage. The candidate receives the standard final rejection email; the reason is stored on their record.</p>
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-bold text-gray-700">Reason <span className="text-red-500">*</span></label>
+                                                        <select
+                                                            className="w-full max-w-md h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+                                                            value={mockInterviewRejectReason}
+                                                            onChange={(e) => setMockInterviewRejectReason(e.target.value as 'not_connect' | 'not_interested' | 'other' | '')}
+                                                            disabled={mockInterviewRejectLoading}
+                                                        >
+                                                            <option value="">Select a reason…</option>
+                                                            <option value="not_connect">Not able to connect</option>
+                                                            <option value="not_interested">Not Interested</option>
+                                                            <option value="other">Other</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-bold text-gray-700">Comment <span className="text-gray-500 font-normal">(optional)</span></label>
+                                                        <textarea
+                                                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 min-h-[80px]"
+                                                            placeholder="Add any extra context (recommended if you chose Other)…"
+                                                            value={mockInterviewRejectComment}
+                                                            onChange={(e) => setMockInterviewRejectComment(e.target.value)}
+                                                            disabled={mockInterviewRejectLoading}
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="border-red-300 text-red-800 hover:bg-red-100 border-2 font-semibold"
+                                                        disabled={!mockInterviewRejectReason || mockInterviewRejectLoading}
+                                                        onClick={() => void handleMockInterviewReject()}
+                                                    >
+                                                        {mockInterviewRejectLoading ? (
+                                                            <>
+                                                                <Loader2 className="w-4 h-4 mr-2 animate-spin shrink-0" />
+                                                                Rejecting…
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <XCircle className="w-4 h-4 mr-2 shrink-0" />
+                                                                Reject candidate
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            )}
+
                                             {/* Quality Review Submission (Hiring Manager / Master Admin) */}
                                             {(isMasterAdmin || userRole === 'HIRING_MANAGER') && (selectedCandidate.status === 'SELECTED' || selectedCandidate.status === 'QUALITY_REVIEW_PENDING') && (
                                                 <div className="space-y-3 pt-4 border-t border-gray-100">
@@ -2040,25 +2365,22 @@ export default function AdminDashboard() {
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    {selectedCandidate.mockInterview?.meetingLink && (
+                                                    {selectedCandidate.qualityReviewLink && (
                                                         <Button
                                                             size="sm"
                                                             className="bg-orange-600 hover:bg-orange-700 text-white shrink-0"
-                                                            onClick={() => window.open(selectedCandidate.mockInterview!.meetingLink, '_blank')}
+                                                            onClick={() => window.open(selectedCandidate.qualityReviewLink!, '_blank')}
                                                         >
-                                                            Join Interview Now
+                                                            Watch Recording
                                                             <ExternalLink className="w-3.5 h-3.5" />
                                                         </Button>
                                                     )}
                                                 </div>
                                                 
-                                                {selectedCandidate.qualityReviewLink && (
-                                                    <div className="bg-white/60 p-4 rounded-2xl border border-orange-100 flex justify-between items-center text-sm">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                                                            <span className="font-bold text-gray-700">Interview Recording Available</span>
-                                                        </div>
-                                                        <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50 shrink-0" onClick={() => window.open(selectedCandidate.qualityReviewLink!, '_blank')}>Watch Recording</Button>
+                                                {!selectedCandidate.qualityReviewLink && (
+                                                    <div className="bg-white/60 p-4 rounded-2xl border border-orange-100 flex items-center gap-3 text-sm">
+                                                        <div className="w-2 h-2 bg-gray-300 rounded-full" />
+                                                        <span className="font-medium text-gray-500">No recording uploaded yet</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -2070,73 +2392,78 @@ export default function AdminDashboard() {
                                                         <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
                                                         Quality Assessment Rubric
                                                     </h4>
-                                                    <span className="text-xs font-bold text-gray-400">SCORE: 1 TO 5</span>
+                                                    <span className="text-xs font-bold text-gray-400">SCORE: 1 TO 10</span>
                                                 </div>
                                                 
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-1 gap-5">
                                                     {[
                                                         { id: 'subjectKnowledge', label: 'Subject Knowledge', desc: 'Understanding of core concepts' },
                                                         { id: 'studentEngagement', label: 'Student Engagement', desc: 'Ability to keep students active' },
                                                         { id: 'energyLevel', label: 'Energy & Confidence', desc: 'Classroom presence' },
                                                         { id: 'communication', label: 'Communication', desc: 'Clarity and articulation' },
-                                                    ].map(rubric => (
+                                                    ].map(rubric => {
+                                                        const currentScore = selectedCandidate.qualityReviewScore?.[rubric.id] || 0;
+                                                        const isCompleted = isQtReviewCompleted(selectedCandidate);
+                                                        return (
                                                         <div key={rubric.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4 hover:border-yellow-200 transition-colors group">
-                                                            <div>
-                                                                <label className="text-sm font-bold text-gray-800 block">{rubric.label}</label>
-                                                                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">{rubric.desc}</p>
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <label className="text-sm font-bold text-gray-800 block">{rubric.label}</label>
+                                                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">{rubric.desc}</p>
+                                                                </div>
+                                                                <span className={cn("text-lg font-black tabular-nums", currentScore > 0 ? "text-yellow-600" : "text-gray-300")}>{currentScore || '–'}<span className="text-xs text-gray-400 font-medium">/10</span></span>
                                                             </div>
-                                                            <div className="flex gap-2">
-                                                                {[1, 2, 3, 4, 5].map(star => (
+                                                            <div className="flex gap-1.5">
+                                                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                                                                     <button
-                                                                        key={star}
+                                                                        key={n}
                                                                         type="button"
-                                                                        disabled={!!qualityFinalizeLoading}
+                                                                        disabled={!!qualityFinalizeLoading || isCompleted}
                                                                         onClick={() => {
-                                                                            const newScores = { ...selectedCandidate.qualityReviewScore, [rubric.id]: star };
+                                                                            const newScores = { ...selectedCandidate.qualityReviewScore, [rubric.id]: n };
                                                                             setSelectedCandidate({...selectedCandidate, qualityReviewScore: newScores});
                                                                         }}
                                                                         className={cn(
-                                                                            "flex-1 h-9 rounded-lg flex items-center justify-center transition-all border-2 text-xs disabled:opacity-50 disabled:pointer-events-none",
-                                                                            (selectedCandidate.qualityReviewScore?.[rubric.id] || 0) >= star 
-                                                                                ? "bg-yellow-400 border-yellow-400 text-white shadow-md scale-105" 
-                                                                                : "bg-gray-50 border-gray-50 text-gray-300 hover:border-yellow-100 hover:bg-yellow-50"
+                                                                            "flex-1 h-9 rounded-lg flex items-center justify-center transition-all border text-xs font-bold disabled:opacity-60 disabled:pointer-events-none",
+                                                                            currentScore >= n
+                                                                                ? "bg-yellow-400 border-yellow-400 text-white shadow-sm"
+                                                                                : "bg-gray-50 border-gray-100 text-gray-400 hover:border-yellow-200 hover:bg-yellow-50 hover:text-yellow-600"
                                                                         )}
                                                                     >
-                                                                        <Star className={cn("w-4 h-4", (selectedCandidate.qualityReviewScore?.[rubric.id] || 0) >= star ? "fill-white" : "")} />
+                                                                        {n}
                                                                     </button>
                                                                 ))}
                                                             </div>
                                                         </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
 
                                             {/* Comments Section */}
                                             <div className="space-y-4">
-                                                <label className="text-sm font-bold text-gray-900 uppercase tracking-widest">Final Review Comments</label>
+                                                <label className="text-sm font-bold text-gray-900 uppercase tracking-widest">Review Comments</label>
                                                 <textarea
                                                     placeholder="Provide detailed feedback on the candidate's performance..."
                                                     className="w-full min-h-[120px] rounded-xl border-gray-200 bg-gray-50 p-4 text-sm focus:ring-primary-500 focus:bg-white shadow-inner transition-all disabled:opacity-50"
                                                     value={qualityReviewComment}
                                                     onChange={e => setQualityReviewComment(e.target.value)}
-                                                    disabled={!!qualityFinalizeLoading}
+                                                    disabled={!!qualityFinalizeLoading || isQtReviewCompleted(selectedCandidate)}
                                                 />
                                             </div>
 
-                                            {/* Action Bar */}
-                                            <div className="flex flex-wrap gap-2 z-20">
+                                            {/* Action Bar — single "Done" CTA; backend auto-decides pass/reject */}
+                                            {!isQtReviewCompleted(selectedCandidate) && (
+                                            <div className="z-20">
                                                 <Button
-                                                    size="sm"
-                                                    className="flex-1 min-w-[140px] bg-green-600 hover:bg-green-700 text-white"
+                                                    className="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 text-white"
                                                     disabled={!!qualityFinalizeLoading}
                                                     onClick={async () => {
                                                         const scores = selectedCandidate.qualityReviewScore;
-                                                        if (!scores || Object.keys(scores).length < 4) {
-                                                            alert('Please score ALL assessment categories before passing');
-                                                            return;
-                                                        }
-                                                        if (!qualityReviewComment.trim()) {
-                                                            alert('A summary comment is required for selected candidates');
+                                                        const rubricKeys = ['subjectKnowledge', 'studentEngagement', 'energyLevel', 'communication'];
+                                                        const missing = rubricKeys.filter(k => !scores?.[k]);
+                                                        if (missing.length > 0) {
+                                                            alert('Please score ALL 4 categories before submitting.');
                                                             return;
                                                         }
                                                         setQualityFinalizeLoading('pass');
@@ -2144,81 +2471,40 @@ export default function AdminDashboard() {
                                                             const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-finalize`, {
                                                                 method: 'POST',
                                                                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                                                body: JSON.stringify({ 
+                                                                body: JSON.stringify({
                                                                     qualityId: userId,
                                                                     scores: { ...scores, comment: qualityReviewComment },
-                                                                    decision: 'SELECTED_FOR_TRAINING'
                                                                 })
                                                             });
                                                             if (res.ok) {
-                                                                alert('Candidate successfully passed Quality Review!');
+                                                                alert('Review submitted! Candidate outcome has been auto-determined based on cutoff scores.');
                                                                 setSelectedCandidate(null);
+                                                                setQualityReviewComment('');
                                                                 fetchCandidates();
+                                                            } else {
+                                                                alert('Failed to submit review. Please try again.');
                                                             }
-                                                        } catch {}
-                                                        finally {
+                                                        } catch {
+                                                            alert('Network error');
+                                                        } finally {
                                                             setQualityFinalizeLoading(null);
                                                         }
                                                     }}
                                                 >
                                                     {qualityFinalizeLoading === 'pass' ? (
                                                         <>
-                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                            Processing…
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />
+                                                            Submitting…
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <ShieldCheck className="w-4 h-4" />
-                                                            Confirm pass
-                                                        </>
-                                                    )}
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="flex-1 min-w-[140px] border-red-200 text-red-600 hover:bg-red-50"
-                                                    disabled={!!qualityFinalizeLoading}
-                                                    onClick={async () => {
-                                                        if (!qualityReviewComment.trim()) {
-                                                            alert('Please provide a reason for rejection in the comments section');
-                                                            return;
-                                                        }
-                                                        if (!confirm('Are you sure you want to reject this candidate? This action is final.')) return;
-                                                        setQualityFinalizeLoading('reject');
-                                                        try {
-                                                            const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/quality-review-finalize`, {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                                                body: JSON.stringify({ 
-                                                                    qualityId: userId,
-                                                                    scores: { ...selectedCandidate.qualityReviewScore, comment: qualityReviewComment },
-                                                                    decision: 'REJECTED'
-                                                                })
-                                                            });
-                                                            if (res.ok) {
-                                                                alert('Candidate has been rejected');
-                                                                setSelectedCandidate(null);
-                                                                fetchCandidates();
-                                                            }
-                                                        } catch {}
-                                                        finally {
-                                                            setQualityFinalizeLoading(null);
-                                                        }
-                                                    }}
-                                                >
-                                                    {qualityFinalizeLoading === 'reject' ? (
-                                                        <>
-                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                            Processing…
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <XCircle className="w-4 h-4" />
-                                                            Reject candidate
+                                                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                                                            Done
                                                         </>
                                                     )}
                                                 </Button>
                                             </div>
+                                            )}
                                         </div>
                                     )}
 
@@ -2278,6 +2564,9 @@ export default function AdminDashboard() {
                                         <div className="bg-red-50 border border-red-200 p-4 rounded-xl text-center space-y-2">
                                             <XCircle className="w-8 h-8 text-red-500 mx-auto" />
                                             <p className="text-red-800 font-bold">Final Status: Rejected</p>
+                                            {getRejectionStage(selectedCandidate) && (
+                                                <p className="text-red-500 text-xs font-semibold uppercase tracking-wide">Stage: {getRejectionStage(selectedCandidate)}</p>
+                                            )}
                                             {selectedCandidate.rejectionReason && (
                                                 <p className="text-red-600 text-sm">Reason: {selectedCandidate.rejectionReason}</p>
                                             )}

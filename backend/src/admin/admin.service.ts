@@ -47,7 +47,7 @@ export class AdminService {
         });
         if (!config) {
             const mockInterviewLink = resolveMockInterviewLink(subject, null) || '';
-            return { subject, mockInterviewLink, trainingNodes: [] };
+            return { subject, mockInterviewLink, trainingNodes: [], qualityCutoffScores: null };
         }
         return {
             ...config,
@@ -56,11 +56,11 @@ export class AdminService {
     }
 
     async saveDashboardConfig(data: any) {
-        const { subject, mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes } = data;
+        const { subject, mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes, qualityCutoffScores } = data;
         return this.prisma.subjectDashboardConfig.upsert({
             where: { subject },
-            update: { mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes },
-            create: { subject, mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes }
+            update: { mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes, qualityCutoffScores },
+            create: { subject, mockInterviewLink, mockInterviewPrepText, mockInterviewPrepLink, trainingNodes, qualityCutoffScores }
         });
     }
 }

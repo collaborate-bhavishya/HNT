@@ -313,7 +313,8 @@ export class ApplicationsService {
     }
 
     async updateCandidateStatus(id: string, status: string, comment?: string) {
-        const data: any = { status };
+        const normalizedStatus = (status || '').trim();
+        const data: any = { status: normalizedStatus };
         if (comment) {
             data.rejectionReason = comment;
         }
@@ -322,7 +323,7 @@ export class ApplicationsService {
             data,
         });
 
-        if (status === 'SELECTED') {
+        if (normalizedStatus === 'SELECTED') {
             const config = await this.prisma.subjectDashboardConfig.findUnique({
                 where: { subject: candidate.position }
             });
@@ -332,11 +333,20 @@ export class ApplicationsService {
                 config?.mockInterviewPrepText || undefined, 
                 config?.mockInterviewPrepLink || undefined
             );
-        } else if (status === 'REJECTED_FINAL' || status === 'SELECTED_FOR_TRAINING') {
-            await this.notifications.sendFinalDecisionEmail(candidate.id, candidate.email, status);
         }
 
-        await this.logTimelineEvent(id, 'STATUS_UPDATED', `Candidate status updated to ${status}`);
+        if (normalizedStatus === 'REJECTED_FINAL') {
+            const isMockInterviewReject = (comment || '').trimStart().startsWith('[Mock interview]');
+            if (isMockInterviewReject) {
+                await this.notifications.sendMockInterviewStageRejectionEmail(candidate.id, candidate.email);
+            } else {
+                await this.notifications.sendFinalDecisionEmail(candidate.id, candidate.email, normalizedStatus);
+            }
+        } else if (normalizedStatus === 'SELECTED_FOR_TRAINING') {
+            await this.notifications.sendFinalDecisionEmail(candidate.id, candidate.email, normalizedStatus);
+        }
+
+        await this.logTimelineEvent(id, 'STATUS_UPDATED', `Candidate status updated to ${normalizedStatus}`);
 
         return candidate;
     }
@@ -368,24 +378,46 @@ export class ApplicationsService {
         return candidate;
     }
 
-    async finalizeQualityReview(candidateId: string, qualityTeamId: string, scores: any, decision: string) {
-        const status = decision === 'SELECTED_FOR_TRAINING' ? 'SELECTED_FOR_TRAINING' : 'REJECTED_FINAL';
-        
-        const candidate = await this.prisma.candidate.update({
+    private readonly DEFAULT_CUTOFF = 5;
+    private readonly RUBRIC_KEYS = ['subjectKnowledge', 'studentEngagement', 'energyLevel', 'communication'] as const;
+
+    async finalizeQualityReview(candidateId: string, qualityTeamId: string, scores: any) {
+        const candidate = await this.prisma.candidate.findUnique({ where: { id: candidateId } });
+        if (!candidate) throw new Error('Candidate not found');
+
+        const config = await this.prisma.subjectDashboardConfig.findUnique({
+            where: { subject: candidate.position },
+        });
+        const cutoffs = (config as any)?.qualityCutoffScores || {};
+
+        let passed = true;
+        for (const key of this.RUBRIC_KEYS) {
+            const score = scores[key] ?? 0;
+            const cutoff = cutoffs[key] ?? this.DEFAULT_CUTOFF;
+            if (score < cutoff) {
+                passed = false;
+                break;
+            }
+        }
+
+        const decision = passed ? 'SELECTED_FOR_TRAINING' : 'REJECTED';
+        const status = passed ? 'SELECTED_FOR_TRAINING' : 'REJECTED_FINAL';
+
+        const updated = await this.prisma.candidate.update({
             where: { id: candidateId },
             data: {
                 qualityReviewScore: scores,
                 qualityReviewResult: decision,
                 status,
-                qualityTeamId, // Ensure it's marked as reviewed by this person
+                qualityTeamId,
             },
         });
 
-        await this.notifications.sendFinalDecisionEmail(candidate.id, candidate.email, status);
+        await this.notifications.sendFinalDecisionEmail(updated.id, updated.email, status);
 
-        await this.logTimelineEvent(candidateId, 'QUALITY_REVIEW_COMPLETED', `Review closed with decision: ${decision}`);
+        await this.logTimelineEvent(candidateId, 'QUALITY_REVIEW_COMPLETED', `Review closed with decision: ${decision} (auto-evaluated against cutoff)`);
 
-        return candidate;
+        return updated;
     }
 
     private async autoAssignQualityTeam(candidateId: string, subject: string) {

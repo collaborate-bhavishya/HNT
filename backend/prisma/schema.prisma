@@ -127,6 +127,7 @@ model SubjectDashboardConfig {
   mockInterviewPrepText String?
   mockInterviewPrepLink String?
   trainingNodes         Json?
+  qualityCutoffScores   Json?    // { subjectKnowledge: 5, studentEngagement: 5, energyLevel: 5, communication: 5 }
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }

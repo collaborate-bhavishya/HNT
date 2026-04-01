@@ -213,7 +213,7 @@ export class NotificationsService {
             });
         } else {
             const body = `
-              <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Thank you for taking the time and effort to apply. We truly appreciate your interest.</p>
+              <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Thank you for your interest. We appreciate your time.</p>
               <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Unfortunately, we will not be moving forward with your application at this time.</p>
               <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">We wish you the very best in your future endeavors.</p>
               <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Kind regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
@@ -222,10 +222,27 @@ export class NotificationsService {
                 from: this.getFrom(),
                 to: email,
                 subject: `Application Update — ${this.companyName} Teaching Position`,
-                text: `Thank you for taking the time and effort to apply. We truly appreciate your interest. Unfortunately, we will not be moving forward with your application at this time. We wish you the very best in your future endeavors. — ${this.companyName} Hiring Team`,
+                text: `Thank you for your interest. We appreciate your time. Unfortunately, we will not be moving forward with your application at this time. We wish you the very best in your future endeavors. — ${this.companyName} Hiring Team`,
                 html: this.wrapInTemplate(body),
             });
         }
+    }
+
+    /** Rejection after mock-interview stage (same body as other final rejections). */
+    async sendMockInterviewStageRejectionEmail(candidateId: string, email: string) {
+        const body = `
+              <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Thank you for your interest. We appreciate your time.</p>
+              <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Unfortunately, we will not be moving forward with your application at this time.</p>
+              <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">We wish you the very best in your future endeavors.</p>
+              <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Kind regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
+
+        await this.sendMail(candidateId, {
+            from: this.getFrom(),
+            to: email,
+            subject: `Application Update — ${this.companyName} Teaching Position`,
+            text: `Thank you for your interest. We appreciate your time. Unfortunately, we will not be moving forward with your application at this time. We wish you the very best in your future endeavors. — ${this.companyName} Hiring Team`,
+            html: this.wrapInTemplate(body),
+        });
     }
 
     async sendMockInterviewInvite(candidateId: string, candidateEmail: string, candidateName: string, managerEmail: string, managerName: string, scheduledAt: Date, meetingLink: string) {

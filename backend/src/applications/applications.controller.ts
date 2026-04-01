@@ -124,9 +124,8 @@ export class ApplicationsController {
         @Param('id') id: string,
         @Body('qualityId') qualityId: string,
         @Body('scores') scores: any,
-        @Body('decision') decision: string,
     ) {
-        return this.applicationsService.finalizeQualityReview(id, qualityId, scores, decision);
+        return this.applicationsService.finalizeQualityReview(id, qualityId, scores);
     }
 
     @Get(':id/emails')
