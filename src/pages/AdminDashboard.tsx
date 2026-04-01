@@ -57,6 +57,11 @@ interface McqQuestion {
     category: string;
 }
 
+interface AudioPromptItem {
+    label: string;
+    prompt: string;
+}
+
 interface Assessment {
     id: string;
     token: string;
@@ -66,12 +71,22 @@ interface Assessment {
     mcqQuestions: McqQuestion[] | null;
     introAudioDriveLink: string | null;
     audioDriveLink: string | null;
+    audioPrompts?: AudioPromptItem[] | null;
     startedAt: string | null;
     completedAt: string | null;
     expiresAt: string | null;
     reminderCount: number;
     lastReminderAt: string | null;
     createdAt: string;
+}
+
+function displayAudioPromptText(prompt: string | undefined): string {
+    if (!prompt) return '';
+    const t = prompt.trim();
+    if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+        return t.slice(1, -1);
+    }
+    return t;
 }
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -1768,11 +1783,21 @@ export default function AdminDashboard() {
                                     {selectedCandidate.assessments && selectedCandidate.assessments.some((a: Assessment) => a.introAudioDriveLink || a.audioDriveLink) && (
                                         <div className="space-y-4">
                                             <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Communication Skills</h4>
-                                            {selectedCandidate.assessments.map((a: Assessment) => (
+                                            {selectedCandidate.assessments.map((a: Assessment) => {
+                                                const prompts = Array.isArray(a.audioPrompts) ? a.audioPrompts : [];
+                                                const introText =
+                                                    displayAudioPromptText(prompts[0]?.prompt) || 'Tell me about yourself';
+                                                const subjectText =
+                                                    displayAudioPromptText(prompts[1]?.prompt) ||
+                                                    `Please explain a fundamental concept of ${selectedCandidate.position} to a beginner. (Prompt not stored for this assessment.)`;
+                                                return (
                                                 <div key={`comm-${a.id}`} className="space-y-3">
                                                     {a.introAudioDriveLink && (
                                                         <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl space-y-2">
-                                                            <div className="text-indigo-800 text-sm font-semibold">Q: Tell me about yourself</div>
+                                                            {prompts[0]?.label && (
+                                                                <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">{prompts[0].label}</div>
+                                                            )}
+                                                            <div className="text-indigo-800 text-sm font-semibold">Q: {introText}</div>
                                                             <audio controls className="w-full h-8" src={a.introAudioDriveLink.startsWith('http://localhost') ? a.introAudioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.introAudioDriveLink}>
                                                                 Your browser does not support the audio element.
                                                             </audio>
@@ -1780,14 +1805,18 @@ export default function AdminDashboard() {
                                                     )}
                                                     {a.audioDriveLink && (
                                                         <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl space-y-2">
-                                                            <div className="text-purple-800 text-sm font-semibold">Q: How would you explain the concept of variables in programming to a 10-year-old?</div>
+                                                            {prompts[1]?.label && (
+                                                                <div className="text-xs font-semibold text-purple-600 uppercase tracking-wide">{prompts[1].label}</div>
+                                                            )}
+                                                            <div className="text-purple-800 text-sm font-semibold">Q: {subjectText}</div>
                                                             <audio controls className="w-full h-8" src={a.audioDriveLink.startsWith('http://localhost') ? a.audioDriveLink.replace(/^http:\/\/localhost:\d+/, API_BASE) : a.audioDriveLink}>
                                                                 Your browser does not support the audio element.
                                                             </audio>
                                                         </div>
                                                     )}
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
 
                                             {['AUDIO_PROCESSING', 'MANUAL_REVIEW', 'AUDIO_FAILED'].includes(selectedCandidate.status) && (
                                                 <div className="border border-gray-200 bg-white p-4 rounded-xl space-y-3">

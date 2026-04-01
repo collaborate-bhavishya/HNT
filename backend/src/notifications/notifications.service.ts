@@ -179,20 +179,36 @@ export class NotificationsService {
     }
 
     async sendFinalDecisionEmail(candidateId: string, email: string, status: string) {
-        if (status === 'SELECTED') {
+        const isPositive = status === 'SELECTED' || status === 'SELECTED_FOR_TRAINING';
+
+        if (isPositive) {
+            const trainingNote =
+                status === 'SELECTED_FOR_TRAINING'
+                    ? `<p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">You have been selected to move forward into our <strong>training</strong> phase. Our team will share onboarding and next steps with you shortly.</p>`
+                    : '';
+
             const body = `
               <div style="margin:0 0 24px;padding:24px;background-color:#ecfdf5;border-radius:8px;border-left:4px solid #10b981;text-align:center">
                 <p style="margin:0;color:#065f46;font-size:20px;font-weight:700">Congratulations! 🎉</p>
               </div>
               <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Your profile has been selected for the next round.</p>
+              ${trainingNote}
               <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.7">Please wait for the next steps — our team will connect with you shortly with further details.</p>
               <p style="margin:24px 0 0;color:#111827;font-size:15px;line-height:1.6">Warm regards,<br><strong>${this.companyName} Hiring Team</strong></p>`;
+
+            const subject =
+                status === 'SELECTED_FOR_TRAINING'
+                    ? `Congratulations! Next step: Training — ${this.companyName}`
+                    : `Congratulations! Welcome to ${this.companyName}`;
 
             await this.sendMail(candidateId, {
                 from: this.getFrom(),
                 to: email,
-                subject: `Congratulations! Welcome to ${this.companyName}`,
-                text: `Congratulations! 🎉 Your profile has been selected for the next round. Please wait for the next steps — our team will connect with you shortly with further details. — ${this.companyName} Hiring Team`,
+                subject,
+                text:
+                    status === 'SELECTED_FOR_TRAINING'
+                        ? `Congratulations! Your profile has been selected for our training phase. Our team will connect with you shortly with further details. — ${this.companyName} Hiring Team`
+                        : `Congratulations! 🎉 Your profile has been selected for the next round. Please wait for the next steps — our team will connect with you shortly with further details. — ${this.companyName} Hiring Team`,
                 html: this.wrapInTemplate(body),
             });
         } else {
@@ -207,6 +223,7 @@ export class NotificationsService {
                 to: email,
                 subject: `Application Update — ${this.companyName} Teaching Position`,
                 text: `Thank you for taking the time and effort to apply. We truly appreciate your interest. Unfortunately, we will not be moving forward with your application at this time. We wish you the very best in your future endeavors. — ${this.companyName} Hiring Team`,
+                html: this.wrapInTemplate(body),
             });
         }
     }

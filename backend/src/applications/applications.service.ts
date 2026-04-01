@@ -250,6 +250,7 @@ export class ApplicationsService {
                         lastReminderAt: true,
                         introAudioDriveLink: true,
                         audioDriveLink: true,
+                        audioPrompts: true,
                     },
                     orderBy: { createdAt: 'desc' },
                 },

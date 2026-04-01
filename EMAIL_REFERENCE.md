@@ -54,15 +54,34 @@ Sender: `SMTP_FROM` env var → `"BrightChamps Hiring Team" <hiring@brightchamps
 | **Subject** | `Congratulations! Welcome to {Company}` |
 | **Body** | "Congratulations! 🎉 Your profile has been selected for the next round. Please wait for the next steps — our team will connect with you shortly with further details." |
 
-## 3b. Final Rejection Email (REJECTED_FINAL)
+## 3b. Training Selection Email (SELECTED_FOR_TRAINING)
 
 | Field | Value |
 |---|---|
-| **Trigger** | Admin changes candidate status to `REJECTED_FINAL` |
+| **Trigger 1** | Quality Team **passes** the candidate after mock interview / quality review |
+| **Where** | `applications.service.ts` → `finalizeQualityReview()` — when decision = `SELECTED_FOR_TRAINING` |
+| **Trigger 2** | Admin sets candidate status to `SELECTED_FOR_TRAINING` |
 | **Where** | `applications.service.ts` → `updateCandidateStatus()` |
 | **Recipient** | Candidate email |
-| **Subject** | `Update on your Teaching Application` |
+| **Subject** | `Congratulations! Next step: Training — {Company}` |
+| **Body (HTML)** | Same congratulatory template as §3a, plus a paragraph that the candidate is moving forward into the **training** phase and that onboarding/next steps will follow. |
+| **Body (text)** | "Congratulations! Your profile has been selected for our training phase. Our team will connect with you shortly with further details." |
+
+**Implementation:** `notifications.service.ts` → `sendFinalDecisionEmail()` (positive branch when `status === 'SELECTED_FOR_TRAINING'`).
+
+## 3c. Final Rejection Email (REJECTED_FINAL)
+
+| Field | Value |
+|---|---|
+| **Trigger 1** | Quality Team **rejects** the candidate after quality review |
+| **Where** | `applications.service.ts` → `finalizeQualityReview()` — when decision = `REJECTED_FINAL` |
+| **Trigger 2** | Admin changes candidate status to `REJECTED_FINAL` |
+| **Where** | `applications.service.ts` → `updateCandidateStatus()` |
+| **Recipient** | Candidate email |
+| **Subject** | `Application Update — {Company} Teaching Position` |
 | **Body** | "Thank you for taking the time and effort to apply. We truly appreciate your interest. Unfortunately, we will not be moving forward with your application at this time. We wish you the very best in your future endeavors." |
+
+**Implementation:** `notifications.service.ts` → `sendFinalDecisionEmail()` (rejection branch).
 
 ---
 
@@ -73,22 +92,25 @@ Candidate Applies
     │
     ├─ Form PASSES  ──→  📧 Email #1: Assessment Link
     │                         │
-    │                         ├─ MCQ ≥ 60%  ──→  Audio Processing → Manual Review
-    │                         │                        │
-    │                         │                        ├─ Admin selects  ──→  📧 Email #3 (SELECTED)
-    │                         │                        └─ Admin rejects  ──→  📧 Email #3 (REJECTED_FINAL)
+    │                         ├─ MCQ ≥ 60%  ──→  Audio Processing → Manual Review → … → Mock interview / Quality review
+    │                         │                                                    │
+    │                         │                        ├─ Admin SELECTED      ──→  📧 §3a (SELECTED)
+    │                         │                        ├─ QT pass (training)  ──→  📧 §3b (SELECTED_FOR_TRAINING)
+    │                         │                        └─ QT or admin reject   ──→  📧 §3c (REJECTED_FINAL)
     │                         │
     │                         └─ MCQ < 60%  ──→  📧 Email #2: Rejection
     │
     └─ Form FAILS   ──→  📧 Email #2: Rejection
 ```
 
+(Middle pipeline stages between manual review and quality review are abbreviated; the important part is which statuses trigger §3a / §3b / §3c via `sendFinalDecisionEmail`.)
+
 ---
 
 ## What Needs Improvement
 
 - **Email #2** is used for both form rejection AND MCQ failure — consider different messaging for each case
-- ~~**Email #3** subject line shows raw status like `SELECTED` / `REJECTED_FINAL`~~ — FIXED: separate emails with proper messaging
+- ~~**Final decision emails** showed wrong template for `SELECTED_FOR_TRAINING` (rejection copy)~~ — FIXED: §3b training congratulations + §3c rejection, via `sendFinalDecisionEmail()`
 - All emails are plain/minimal — no branding, logo, or professional template
 - No email sent when candidate enters `MANUAL_REVIEW` or `AUDIO_PROCESSING` (no status update to candidate)
 - Consider adding a "We're reviewing your application" email after assessment submission
