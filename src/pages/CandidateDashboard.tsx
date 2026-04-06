@@ -237,7 +237,7 @@ export default function CandidateDashboard() {
                   {!isTraining && step.name === 'Schedule & Prepare Mock Round Interview' && data.mockInterviewDate && (
                      <div className={`mt-3 inline-flex items-center gap-1.5 text-[11px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-md border ${isPending ? 'bg-slate-50 border-slate-200 text-slate-400' : 'bg-white border-slate-200 text-slate-600'} shadow-[0_1px_2px_rgba(0,0,0,0.02)]`}>
                         <CalendarDays size={14} />
-                        Scheduled: {new Date(data.mockInterviewDate).toLocaleString()}
+                        Scheduled: {new Date(data.mockInterviewDate).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long', timeStyle: 'short' })} IST
                      </div>
                   )}
 

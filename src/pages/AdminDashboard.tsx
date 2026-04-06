@@ -215,9 +215,10 @@ export default function AdminDashboard() {
                         const data = await res.json();
                         setCandidateMockInterview(data);
                         if (data && data.scheduledAt) {
-                            const d = new Date(data.scheduledAt);
-                            setMockInterviewDate(d.toISOString().substring(0, 10));
-                            setMockInterviewTime(d.toTimeString().substring(0, 5));
+                            const istStr = new Date(data.scheduledAt).toLocaleString('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+                            const [datePart, timePart] = istStr.split(', ');
+                            setMockInterviewDate(datePart || '');
+                            setMockInterviewTime(timePart?.substring(0, 5) || '');
                         }
                         if (data && data.meetingLink) setMockInterviewLinkInput(data.meetingLink);
                     }
@@ -2165,20 +2166,28 @@ export default function AdminDashboard() {
                                                 )}
                                                 {/* Mock Interview Scheduling */}
                                                 <div className={cn('space-y-4 mb-8', mockInterviewTabLoading && 'opacity-50 pointer-events-none')}>
-                                                    <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">Schedule Mock Interview</h4>
+                                                    <h4 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
+                                                        {candidateMockInterview?.status === 'SCHEDULED' ? 'Reschedule Mock Interview' : 'Schedule Mock Interview'}
+                                                    </h4>
                                                     <div className="bg-gray-50 border border-gray-200 p-5 rounded-xl space-y-4">
                                                         {candidateMockInterview?.status === 'SCHEDULED' && (
-                                                            <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-md text-sm mb-4">
-                                                                <strong>Interview Scheduled</strong> for {new Date(candidateMockInterview.scheduledAt).toLocaleString()}
+                                                            <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-lg text-sm flex items-center gap-3">
+                                                                <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+                                                                <div>
+                                                                    <strong>Currently Scheduled</strong>
+                                                                    <span className="ml-1">
+                                                                        {new Date(candidateMockInterview.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long', timeStyle: 'short' })} IST
+                                                                    </span>
+                                                                </div>
                                                             </div>
                                                         )}
                                                         <div className="grid grid-cols-2 gap-4">
                                                             <div className="space-y-2">
-                                                                <label className="text-xs font-bold text-gray-600">Date</label>
+                                                                <label className="text-xs font-bold text-gray-600">Date <span className="text-gray-400 font-normal">(IST)</span></label>
                                                                 <Input type="date" value={mockInterviewDate} onChange={e => setMockInterviewDate(e.target.value)} disabled={mockInterviewTabLoading || mockInterviewScheduleSaving} />
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <label className="text-xs font-bold text-gray-600">Time</label>
+                                                                <label className="text-xs font-bold text-gray-600">Time <span className="text-gray-400 font-normal">(IST)</span></label>
                                                                 <Input type="time" value={mockInterviewTime} onChange={e => setMockInterviewTime(e.target.value)} disabled={mockInterviewTabLoading || mockInterviewScheduleSaving} />
                                                             </div>
                                                         </div>
@@ -2188,20 +2197,27 @@ export default function AdminDashboard() {
                                                         </div>
                                                         <Button
                                                             size="sm"
-                                                            className="bg-primary-600 hover:bg-primary-700 text-white w-full sm:w-auto"
+                                                            className={cn(
+                                                                "text-white w-full sm:w-auto",
+                                                                candidateMockInterview?.status === 'SCHEDULED'
+                                                                    ? "bg-orange-600 hover:bg-orange-700"
+                                                                    : "bg-primary-600 hover:bg-primary-700"
+                                                            )}
                                                             disabled={mockInterviewTabLoading || mockInterviewScheduleSaving || qualityReviewLinkSubmitting}
                                                             onClick={async () => {
                                                                 if (!mockInterviewDate || !mockInterviewTime || !mockInterviewLinkInput) return alert('Fill all fields');
-                                                                const dt = `${mockInterviewDate}T${mockInterviewTime}`;
+                                                                const isReschedule = !!candidateMockInterview?.status;
+                                                                if (isReschedule && !confirm('This will reschedule the existing interview and notify the candidate with new details. Continue?')) return;
+                                                                const dt = `${mockInterviewDate}T${mockInterviewTime}:00+05:30`;
                                                                 setMockInterviewScheduleSaving(true);
                                                                 try {
                                                                     const res = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/mock-interview`, {
                                                                         method: 'POST',
                                                                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                                                        body: JSON.stringify({ scheduledAt: dt, meetingLink: mockInterviewLinkInput })
+                                                                        body: JSON.stringify({ scheduledAt: dt, meetingLink: mockInterviewLinkInput, isReschedule })
                                                                     });
                                                                     if (res.ok) {
-                                                                        alert('Interview Scheduled!');
+                                                                        alert(isReschedule ? 'Interview rescheduled! Updated invites sent.' : 'Interview Scheduled!');
                                                                         const miRes = await fetch(`${API_BASE}/api/applications/${selectedCandidate.id}/mock-interview`, { headers: { 'Authorization': `Bearer ${token}` } });
                                                                         if (miRes.ok) {
                                                                             const data = await miRes.json();
@@ -2219,10 +2235,10 @@ export default function AdminDashboard() {
                                                             {mockInterviewScheduleSaving ? (
                                                                 <>
                                                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                                    Scheduling…
+                                                                    {candidateMockInterview?.status === 'SCHEDULED' ? 'Rescheduling…' : 'Scheduling…'}
                                                                 </>
                                                             ) : (
-                                                                'Save & Schedule'
+                                                                candidateMockInterview?.status === 'SCHEDULED' ? 'Reschedule Interview' : 'Save & Schedule'
                                                             )}
                                                         </Button>
                                                     </div>
@@ -2360,7 +2376,7 @@ export default function AdminDashboard() {
                                                             <p className="text-sm text-orange-700 font-semibold flex items-center gap-2">
                                                                 <Clock className="w-4 h-4" />
                                                                 {selectedCandidate.mockInterview?.scheduledAt 
-                                                                    ? new Date(selectedCandidate.mockInterview.scheduledAt).toLocaleString([], { dateStyle: 'long', timeStyle: 'short' }) 
+                                                                    ? `${new Date(selectedCandidate.mockInterview.scheduledAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long', timeStyle: 'short' })} IST`
                                                                     : 'Not scheduled yet'}
                                                             </p>
                                                         </div>

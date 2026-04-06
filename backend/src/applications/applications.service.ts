@@ -518,17 +518,23 @@ export class ApplicationsService {
         });
     }
 
-    async scheduleMockInterview(candidateId: string, scheduledAt: string, meetingLink: string) {
+    private formatIST(date: Date): string {
+        return date.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long', timeStyle: 'short' }) + ' IST';
+    }
+
+    async scheduleMockInterview(candidateId: string, scheduledAt: string, meetingLink: string, isReschedule = false) {
         const interview = await this.prisma.mockInterview.upsert({
             where: { candidateId },
             update: { scheduledAt: new Date(scheduledAt), meetingLink, status: 'SCHEDULED' },
             create: { candidateId, scheduledAt: new Date(scheduledAt), meetingLink, status: 'SCHEDULED' }
         });
 
+        const istFormatted = this.formatIST(new Date(scheduledAt));
+        const action = isReschedule ? 'INTERVIEW_RESCHEDULED' : 'INTERVIEW_SCHEDULED';
         await this.logTimelineEvent(
-            candidateId, 
-            'INTERVIEW_SCHEDULED', 
-            `Mock interview scheduled for ${new Date(scheduledAt).toLocaleString()}`
+            candidateId,
+            action,
+            `Mock interview ${isReschedule ? 'rescheduled' : 'scheduled'} for ${istFormatted}`
         );
 
         // Auto-assign quality team member if meeting link is provided
@@ -558,7 +564,8 @@ export class ApplicationsService {
                     managerEmail,
                     managerName,
                     new Date(scheduledAt),
-                    meetingLink
+                    meetingLink,
+                    isReschedule
                 );
             }
         }

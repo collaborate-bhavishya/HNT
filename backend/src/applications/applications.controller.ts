@@ -152,7 +152,8 @@ export class ApplicationsController {
         @Param('id') id: string,
         @Body('scheduledAt') scheduledAt: string,
         @Body('meetingLink') meetingLink: string,
+        @Body('isReschedule') isReschedule?: boolean,
     ) {
-        return this.applicationsService.scheduleMockInterview(id, scheduledAt, meetingLink);
+        return this.applicationsService.scheduleMockInterview(id, scheduledAt, meetingLink, isReschedule);
     }
 }
